@@ -1,0 +1,21 @@
+{
+  "collectionName": "components_ventas_producto_en_carritos",
+  "info": {
+    "displayName": "ProductoEnCarrito"
+  },
+  "options": {},
+  "attributes": {
+    "cantidad": {
+      "type": "integer"
+    },
+    "d_grabado": {
+      "type": "string"
+    },
+    "producto": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::producto.producto"
+    }
+  },
+  "config": {}
+}

@@ -1,0 +1,28 @@
+{
+  "kind": "collectionType",
+  "collectionName": "carritos",
+  "info": {
+    "singularName": "carrito",
+    "pluralName": "carritos",
+    "displayName": "Carrito"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "sub_total": {
+      "type": "decimal"
+    },
+    "usuarios": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "items": {
+      "type": "component",
+      "component": "ventas.producto-en-carrito",
+      "repeatable": true
+    }
+  }
+}
