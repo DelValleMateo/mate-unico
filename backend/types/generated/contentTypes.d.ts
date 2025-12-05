@@ -491,6 +491,7 @@ export interface ApiProductoProducto extends Struct.CollectionTypeSchema {
     nombreProducto: Schema.Attribute.String;
     precio: Schema.Attribute.Decimal;
     publishedAt: Schema.Attribute.DateTime;
+    slug: Schema.Attribute.UID<'nombreProducto'>;
     tiene_Grabado: Schema.Attribute.Boolean;
     tp_producto: Schema.Attribute.Enumeration<
       [
