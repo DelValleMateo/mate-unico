@@ -18,7 +18,7 @@ module.exports = {
                 }
             },
             backgroundImage: {
-                'cuero': "url('/fondo-cuero.jpg')",
+                'cuero': "url('/fondo-cuero.png')",
             }
         },
     },
