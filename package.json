@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "lucide-react": "^0.555.0"
+    "lucide-react": "^0.555.0",
+    "mercadopago": "^2.11.0"
   }
 }
