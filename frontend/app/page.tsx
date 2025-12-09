@@ -101,9 +101,12 @@ function SectionGrid({ title, subtitle, products }: { title: string, subtitle: s
         ))}
       </div>
 
-      <button className="px-8 py-2 border border-white/30 text-white text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded-sm">
-        Ver Todos
-      </button>
-    </section>
-  );
+      <Link 
+          href="/catalogo" // RUTA CORREGIDA
+          className="inline-block px-8 py-2 border border-white/30 text-white text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded-sm"
+      >
+        Ver Todos
+      </Link>
+    </section>
+  );
 }
