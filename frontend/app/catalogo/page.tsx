@@ -102,15 +102,16 @@ export default async function CatalogoPage() {
                 {/* -------------------- Grid de Productos -------------------- */}
                 <section className="w-full md:w-3/4">
                     
-                    {/* Selector de Ordenar (TAMAÑO MODIFICADO) */}
+                    {/* Selector de Ordenar (5 OPCIONES FINALES) */}
 <div className="flex justify-end mb-4">
     <select 
-        // CLASES MODIFICADAS: text-base, py-2, y px-4
         className="px-4 py-2 border border-gray-700 bg-gray-800 text-white rounded-sm text-base"
     >
-        <option value="todos">Todos</option> 
-        <option value="novedades">Novedades</option> 
-        <option value="combos">Combos</option> 
+        <option value="">Todos</option> 
+        <option value="fecha_desc">Fecha (Más Reciente)</option> 
+        <option value="fecha_asc">Fecha (Más Antiguo)</option> 
+        <option value="precio_asc">Precio (Menor a Mayor)</option> 
+        <option value="precio_desc">Precio (Mayor a Menor)</option> 
     </select>
 </div>
 

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import Link from 'next/link'; // Asegúrate de que este import esté presente
+import Link from 'next/link'; 
 import { Search, ShoppingCart, User } from 'lucide-react';
 import { useCart } from '../context/CartContext'; 
 
