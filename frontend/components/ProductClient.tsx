@@ -1,5 +1,5 @@
 "use client";
-
+import MercadoPagoButton from './MercadoPagoButton';
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { Minus, Plus } from 'lucide-react';
@@ -113,6 +113,9 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                             >
                                 AÑADIR AL CARRITO - ${formatPrice(precio * quantity)}
                             </button>
+                            <div className="mt-4">
+                                <MercadoPagoButton />
+                            </div>
                             <div className="flex items-center justify-between border border-white/20 bg-white/5 w-32 px-4 py-3 rounded-md">
                                 <button onClick={() => handleQuantity('dec')} className={`text-gray-400 hover:text-white ${quantity === 1 ? 'opacity-50' : ''}`}><Minus size={16} /></button>
                                 <span className="text-white font-medium">{quantity}</span>
