@@ -41,7 +41,6 @@ export default function HomePage() {
   const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
 
   return (
-    // NOTA: No ponemos el div del fondo ni el Header/Footer, eso viene del Layout de Jesús.
     <>
       {/* --- HERO SECTION (CARRUSEL) --- */}
       <section className="relative w-full h-[600px] overflow-hidden">
@@ -73,15 +72,32 @@ export default function HomePage() {
       </section>
 
       {/* --- SECCIONES DE PRODUCTOS --- */}
-      <SectionGrid title="Destacados" subtitle="Los productos mas destacados actualmente en nuestro sitio" products={destacados} />
-      <SectionGrid title="Novedades" subtitle="Los Productos mas recientes que lanzamos a la venta" products={novedades} />
-      <SectionGrid title="Mas Variedad" subtitle="Aca vas a encontrar todo tipo de producto" products={variedad} />
+      <SectionGrid 
+          title="Destacados" 
+          subtitle="Los productos mas destacados actualmente en nuestro sitio" 
+          products={destacados} 
+      />
+      
+      {/* SECCIÓN NOVEDADES: AHORA ENVÍA EL FILTRO PARA ORDENAR POR FECHA MÁS RECIENTE */}
+<SectionGrid 
+    title="Novedades" 
+    subtitle="Los Productos mas recientes que lanzamos a la venta" 
+    products={novedades} 
+    linkHref="/catalogo?ordenar=fecha_desc" // RUTA CON EL FILTRO
+/>
+      
+      <SectionGrid 
+          title="Mas Variedad" 
+          subtitle="Aca vas a encontrar todo tipo de producto" 
+          products={variedad} 
+      />
     </>
   );
 }
 
 // Componente auxiliar local para esta página
-function SectionGrid({ title, subtitle, products }: { title: string, subtitle: string, products: any[] }) {
+// MODIFICADO: Ahora acepta 'linkHref' como propiedad
+function SectionGrid({ title, subtitle, products, linkHref = '/catalogo' }: { title: string, subtitle: string, products: any[], linkHref?: string }) {
   return (
     <section className="max-w-7xl mx-auto px-8 py-16 text-center">
       <div className="mb-12 space-y-2">
@@ -91,7 +107,6 @@ function SectionGrid({ title, subtitle, products }: { title: string, subtitle: s
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
         {products.map((product) => (
-          // OJO: Aquí linkeamos al detalle del producto
           <Link href="/producto/mate-imperial" key={product.id} className="group flex flex-col items-center">
             <div className="relative w-full aspect-square bg-[#1a1a1a]/60 rounded-xl overflow-hidden border border-white/5 group-hover:border-white/20 transition-all duration-300">
               <Image src={product.img} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -101,9 +116,12 @@ function SectionGrid({ title, subtitle, products }: { title: string, subtitle: s
         ))}
       </div>
 
-      <button className="px-8 py-2 border border-white/30 text-white text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded-sm">
+      <Link 
+        href={linkHref} // Usa la URL dinámica con el filtro
+        className="inline-block px-8 py-2 border border-white/30 text-white text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded-sm"
+      >
         Ver Todos
-      </button>
+      </Link>
     </section>
   );
 }

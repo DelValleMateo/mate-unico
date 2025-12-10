@@ -2,11 +2,15 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link'; 
 import { Search, ShoppingCart, User } from 'lucide-react';
-import { useCart } from '../context/CartContext'; // Importamos el contexto del carrito
+import { useCart } from '../context/CartContext'; 
 
 export default function Header() {
-    const { totalItems } = useCart(); // Obtenemos el número total de items
+    const { totalItems } = useCart(); 
+
+    // Clases unificadas para todos los elementos del menú principal
+    const navLinkClasses = "hover:text-white transition-colors uppercase text-xs";
 
     return (
         <header className="flex flex-col items-center pt-6 pb-4 px-8 md:px-12 w-full border-b border-white/5 gap-6">
@@ -37,11 +41,20 @@ export default function Header() {
                     </div>
                 </div>
 
-                {/* CENTRO: Menú */}
+                {/* CENTRO: Menú (CORREGIDO: Links de Next.js y clases uniformes) */}
                 <nav className="w-full md:w-1/3 flex justify-center gap-10 text-sm text-gray-300 font-medium tracking-widest my-4 md:my-0">
-                    <a href="#" className="hover:text-white transition-colors uppercase text-xs">Inicio</a>
-                    <a href="#" className="hover:text-white transition-colors uppercase text-xs">Productos</a>
-                    <a href="#" className="hover:text-white transition-colors uppercase text-xs">Contacto</a>
+                    
+                    <Link href="/" className={navLinkClasses}>
+                        Inicio
+                    </Link>
+                    
+                    <Link href="/catalogo" className={navLinkClasses}>
+                        Productos
+                    </Link>
+                    
+                    <Link href="/contacto" className={navLinkClasses}>
+                        Contacto
+                    </Link>
                 </nav>
 
                 {/* DERECHA: Iconos (Con lógica del Carrito) */}
