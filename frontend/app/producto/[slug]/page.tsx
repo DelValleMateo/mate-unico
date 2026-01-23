@@ -31,7 +31,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             </div>
         );
     }
-
+    console.log("📸 DATOS DEL PRODUCTO (Verificar nombre de imagen):", JSON.stringify(product, null, 2));
     // Le pasamos los datos al componente Cliente (que sí tiene useState)
     return <ProductClient product={product} />;
 }
