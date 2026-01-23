@@ -48,6 +48,9 @@
     "slug": {
       "type": "uid",
       "targetField": "nombreProducto"
+    },
+    "stock": {
+      "type": "integer"
     }
   }
 }

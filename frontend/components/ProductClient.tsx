@@ -1,22 +1,19 @@
 "use client";
 import MercadoPagoButton from './MercadoPagoButton';
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { Minus, Plus } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 
-// 1. CORREGIMOS LA INTERFAZ PARA QUE COINCIDA CON TU JSON DE STRAPI
+const STRAPI_URL = "http://localhost:1337";
+
 interface ProductProps {
     id: number;
     documentId: string;
-    nombreProducto: string; // <-- OJO: En tu JSON se llama así
+    nombreProducto: string;
     descripcion: string;
     precio: number;
-    stock?: number; // Lo ponemos opcional por si no está en Strapi
-    imagenes: Array<{
-        id: number;
-        url: string;
-    }>
+    stock?: number;
+    imagenes: any[]; // Sabemos que es un array gracias a tu JSON
 }
 
 export default function ProductClient({ product }: { product: ProductProps }) {
@@ -25,21 +22,29 @@ export default function ProductClient({ product }: { product: ProductProps }) {
     const [selectedColor, setSelectedColor] = useState('black');
     const [grabadoText, setGrabadoText] = useState('');
 
-    // 2. DESESTRUCTURAMOS DIRECTAMENTE (Sin .attributes)
-    // Usamos 'stock = 10' por defecto por si olvidaste crearlo en Strapi
+    // 1. Desestructuración directa basada en tu JSON
     const { nombreProducto, precio, descripcion, stock = 10, imagenes } = product;
 
-    // 3. HELPER DE IMÁGENES ACTUALIZADO
-    const getImageUrl = (imgData: any) => {
-        // En tu versión, imgData ya es el objeto directo, verificamos si tiene url
-        if (!imgData || !imgData.url) return '/placeholder.png';
-        return `http://localhost:1337${imgData.url}`;
+    // 2. Función simple para obtener URL
+    const getImageUrl = (index: number) => {
+        // Verificar si existe la imagen en esa posición
+        if (!imagenes || !imagenes[index]) return '/placeholder.png';
+
+        const imgObj = imagenes[index];
+
+        // Tu JSON dice que la url está directa, pero por seguridad revisamos ambas
+        const url = imgObj.url || imgObj.attributes?.url;
+
+        if (!url) return '/placeholder.png';
+
+        // Si ya tiene http (ej: Cloudinary) la dejamos, si no, le pegamos el localhost
+        return url.startsWith('http') ? url : `${STRAPI_URL}${url}`;
     };
 
-    // 4. LEER IMÁGENES (Tu JSON muestra que es un array directo, sin .data)
-    const mainImage = imagenes?.[0] ? getImageUrl(imagenes[0]) : '/placeholder.png';
-    const secondaryImage1 = imagenes?.[1] ? getImageUrl(imagenes[1]) : mainImage;
-    const secondaryImage2 = imagenes?.[2] ? getImageUrl(imagenes[2]) : mainImage;
+    // 3. URLs listas
+    const mainImage = getImageUrl(0);
+    const secondaryImage1 = getImageUrl(1) === '/placeholder.png' ? mainImage : getImageUrl(1);
+    const secondaryImage2 = getImageUrl(2) === '/placeholder.png' ? mainImage : getImageUrl(2);
 
     const formatPrice = (amount: number) => amount.toLocaleString('es-AR');
 
@@ -51,7 +56,8 @@ export default function ProductClient({ product }: { product: ProductProps }) {
     const onAddToCart = () => {
         addToCart({
             id: product.id,
-            name: nombreProducto, // Usamos el nombre real
+            documentId: product.documentId,
+            name: nombreProducto,
             price: precio,
             img: mainImage,
             quantity: quantity,
@@ -66,15 +72,15 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                 {/* GALERÍA */}
                 <div className="w-full h-full grid grid-cols-5 gap-4">
                     <div className="col-span-2 flex flex-col gap-4 h-full">
-                        <div className="relative flex-1 bg-gray-800 rounded-[15px] overflow-hidden border border-white/10 group">
-                            <Image src={secondaryImage1} alt="Vista 1" fill className="object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative flex-1 bg-gray-800 rounded-[15px] overflow-hidden border border-white/10 group cursor-pointer">
+                            <img src={secondaryImage1} alt="Vista 1" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="relative flex-1 bg-gray-800 rounded-[15px] overflow-hidden border border-white/10 group">
-                            <Image src={secondaryImage2} alt="Vista 2" fill className="object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative flex-1 bg-gray-800 rounded-[15px] overflow-hidden border border-white/10 group cursor-pointer">
+                            <img src={secondaryImage2} alt="Vista 2" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                         </div>
                     </div>
                     <div className="col-span-3 relative h-full bg-gray-800 rounded-[15px] overflow-hidden border border-white/10">
-                        <Image src={mainImage} alt={nombreProducto} fill className="object-cover" priority />
+                        <img src={mainImage} alt={nombreProducto} className="w-full h-full object-cover" />
                     </div>
                 </div>
 
@@ -109,20 +115,22 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                         <div className="flex flex-col md:flex-row gap-4">
                             <button
                                 onClick={onAddToCart}
-                                className="flex-1 bg-white text-black font-bold py-3 px-6 hover:bg-gray-200 transition-colors uppercase tracking-wide text-sm rounded-md"
+                                disabled={stock <= 0}
+                                className={`flex-1 font-bold py-3 px-6 uppercase tracking-wide text-sm rounded-md transition-colors ${stock > 0 ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
                             >
-                                AÑADIR AL CARRITO - ${formatPrice(precio * quantity)}
+                                {stock > 0 ? `AÑADIR AL CARRITO - $${formatPrice(precio * quantity)}` : 'SIN STOCK'}
                             </button>
-                            <div className="mt-4">
-                                <MercadoPagoButton />
-                            </div>
+
                             <div className="flex items-center justify-between border border-white/20 bg-white/5 w-32 px-4 py-3 rounded-md">
                                 <button onClick={() => handleQuantity('dec')} className={`text-gray-400 hover:text-white ${quantity === 1 ? 'opacity-50' : ''}`}><Minus size={16} /></button>
                                 <span className="text-white font-medium">{quantity}</span>
                                 <button onClick={() => handleQuantity('inc')} className={`text-gray-400 hover:text-white ${quantity >= stock ? 'opacity-30' : ''}`} disabled={quantity >= stock}><Plus size={16} /></button>
                             </div>
                         </div>
-                        <p className="text-xs text-gray-500 text-right">Stock disponible: {stock} unidades</p>
+
+                        {stock > 0 && <div className="mt-2 w-full"><MercadoPagoButton /></div>}
+
+                        <p className="text-xs text-gray-500 text-right mt-2">{stock > 0 ? `Stock disponible: ${stock} unidades` : 'Producto Agotado'}</p>
                     </div>
                 </div>
             </div>
