@@ -1,10 +1,12 @@
 "use client";
-import MercadoPagoButton from './MercadoPagoButton';
-import React, { useState } from 'react';
-import { Minus, Plus } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { Minus, Plus, Check } from 'lucide-react';
+import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 
 const STRAPI_URL = "http://localhost:1337";
+const PRECIO_POR_LETRA = 500; // 👈 Nuestra nueva regla de negocio
 
 interface ProductProps {
     id: number;
@@ -13,7 +15,7 @@ interface ProductProps {
     descripcion: string;
     precio: number;
     stock?: number;
-    imagenes: any[]; // Sabemos que es un array gracias a tu JSON
+    imagenes: any[];
 }
 
 export default function ProductClient({ product }: { product: ProductProps }) {
@@ -21,32 +23,33 @@ export default function ProductClient({ product }: { product: ProductProps }) {
     const [quantity, setQuantity] = useState(1);
     const [selectedColor, setSelectedColor] = useState('black');
     const [grabadoText, setGrabadoText] = useState('');
+    const [isAdded, setIsAdded] = useState(false);
 
-    // 1. Desestructuración directa basada en tu JSON
     const { nombreProducto, precio, descripcion, stock = 10, imagenes } = product;
 
-    // 2. Función simple para obtener URL
+    // Reseteamos el botón si el usuario cambia algo
+    useEffect(() => {
+        setIsAdded(false);
+    }, [quantity, selectedColor, grabadoText]);
+
     const getImageUrl = (index: number) => {
-        // Verificar si existe la imagen en esa posición
         if (!imagenes || !imagenes[index]) return '/placeholder.png';
-
         const imgObj = imagenes[index];
-
-        // Tu JSON dice que la url está directa, pero por seguridad revisamos ambas
         const url = imgObj.url || imgObj.attributes?.url;
-
         if (!url) return '/placeholder.png';
-
-        // Si ya tiene http (ej: Cloudinary) la dejamos, si no, le pegamos el localhost
         return url.startsWith('http') ? url : `${STRAPI_URL}${url}`;
     };
 
-    // 3. URLs listas
     const mainImage = getImageUrl(0);
     const secondaryImage1 = getImageUrl(1) === '/placeholder.png' ? mainImage : getImageUrl(1);
     const secondaryImage2 = getImageUrl(2) === '/placeholder.png' ? mainImage : getImageUrl(2);
 
     const formatPrice = (amount: number) => amount.toLocaleString('es-AR');
+
+    // 👇 CÁLCULO DE PRECIO DINÁMICO 👇
+    const costoGrabado = grabadoText.length * PRECIO_POR_LETRA;
+    const precioUnitarioFinal = precio + costoGrabado;
+    const precioTotalFinal = precioUnitarioFinal * quantity;
 
     const handleQuantity = (type: 'inc' | 'dec') => {
         if (type === 'inc' && quantity < stock) setQuantity(quantity + 1);
@@ -58,11 +61,14 @@ export default function ProductClient({ product }: { product: ProductProps }) {
             id: product.id,
             documentId: product.documentId,
             name: nombreProducto,
-            price: precio,
+            price: precioUnitarioFinal, // Mandamos el precio con el grabado incluido
             img: mainImage,
             quantity: quantity,
-            color: selectedColor
+            color: selectedColor,
+            grabado: grabadoText
         });
+
+        setIsAdded(true);
     };
 
     return (
@@ -89,7 +95,7 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                     <div className="flex flex-col gap-4">
                         <div className="mb-1">
                             <h2 className="text-4xl font-bold text-white mb-1">{nombreProducto}</h2>
-                            <p className="text-2xl font-light text-gray-300">${formatPrice(precio)}</p>
+                            <p className="text-2xl font-light text-gray-300">${formatPrice(precioUnitarioFinal)}</p>
                         </div>
                         <div className="space-y-3">
                             <p className="text-gray-400 leading-relaxed text-sm md:text-base">{descripcion}</p>
@@ -104,22 +110,53 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                                     <button onClick={() => setSelectedColor('brown')} className={`w-10 h-10 bg-[#5D2E2E] border ${selectedColor === 'brown' ? 'border-white' : 'border-gray-600'} rounded-md`} />
                                 </div>
                             </div>
+
+                            {/* GRABADO */}
                             <div>
-                                <div className="flex justify-between"><label className="text-sm text-gray-500 mb-2 block">Grabado</label><span className="text-xs text-gray-600">{grabadoText.length}/10</span></div>
-                                <input type="text" value={grabadoText} onChange={(e) => e.target.value.length <= 10 && setGrabadoText(e.target.value)} placeholder="(Max 10)" className="w-full bg-transparent border border-gray-600 p-3 text-white focus:outline-none focus:border-white rounded-md h-12" />
+                                <div className="flex justify-between items-end mb-2">
+                                    <label className="text-sm text-gray-500 block">
+                                        Grabado <span className="text-xs text-amber-500/80 ml-2">(+$500 x letra)</span>
+                                    </label>
+                                    <span className="text-xs text-gray-600">{grabadoText.length}/10</span>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={grabadoText}
+                                    onChange={(e) => e.target.value.length <= 10 && setGrabadoText(e.target.value)}
+                                    placeholder="(Max 10)"
+                                    className="w-full bg-transparent border border-gray-600 p-3 text-white focus:outline-none focus:border-white rounded-md h-12 transition-colors"
+                                />
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-auto flex flex-col gap-2 pt-4">
                         <div className="flex flex-col md:flex-row gap-4">
-                            <button
-                                onClick={onAddToCart}
-                                disabled={stock <= 0}
-                                className={`flex-1 font-bold py-3 px-6 uppercase tracking-wide text-sm rounded-md transition-colors ${stock > 0 ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
-                            >
-                                {stock > 0 ? `AÑADIR AL CARRITO - $${formatPrice(precio * quantity)}` : 'SIN STOCK'}
-                            </button>
+
+                            {isAdded ? (
+                                <div className="flex-1 flex gap-2">
+                                    <button
+                                        onClick={onAddToCart}
+                                        className="flex-1 font-bold py-3 px-2 uppercase tracking-wide text-xs md:text-sm rounded-md transition-colors bg-green-600/20 text-green-500 border border-green-500/50 hover:bg-green-600/30 flex items-center justify-center gap-2"
+                                    >
+                                        <Check size={18} /> AÑADIDO
+                                    </button>
+                                    <Link
+                                        href="/carrito"
+                                        className="flex-1 font-bold py-3 px-2 uppercase tracking-wide text-xs md:text-sm rounded-md transition-colors bg-white text-black hover:bg-gray-200 flex items-center justify-center"
+                                    >
+                                        IR AL CARRITO
+                                    </Link>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={onAddToCart}
+                                    disabled={stock <= 0}
+                                    className={`flex-1 font-bold py-3 px-6 uppercase tracking-wide text-sm rounded-md transition-colors ${stock > 0 ? 'bg-white text-black hover:bg-gray-200' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
+                                >
+                                    {stock > 0 ? `AÑADIR - $${formatPrice(precioTotalFinal)}` : 'SIN STOCK'}
+                                </button>
+                            )}
 
                             <div className="flex items-center justify-between border border-white/20 bg-white/5 w-32 px-4 py-3 rounded-md">
                                 <button onClick={() => handleQuantity('dec')} className={`text-gray-400 hover:text-white ${quantity === 1 ? 'opacity-50' : ''}`}><Minus size={16} /></button>
@@ -127,8 +164,6 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                                 <button onClick={() => handleQuantity('inc')} className={`text-gray-400 hover:text-white ${quantity >= stock ? 'opacity-30' : ''}`} disabled={quantity >= stock}><Plus size={16} /></button>
                             </div>
                         </div>
-
-                        {stock > 0 && <div className="mt-2 w-full"><MercadoPagoButton /></div>}
 
                         <p className="text-xs text-gray-500 text-right mt-2">{stock > 0 ? `Stock disponible: ${stock} unidades` : 'Producto Agotado'}</p>
                     </div>
