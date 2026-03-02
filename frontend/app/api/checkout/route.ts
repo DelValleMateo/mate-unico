@@ -2,127 +2,169 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
     try {
-        const { items } = await request.json();
+        const { items, userId } = await request.json();
 
-        // Array para guardar los productos validados y no hacer doble búsqueda
+        // --- 1. CONFIGURACIÓN DE REGLAS ---
+        const UMBRAL_ENVIO_GRATIS = 50000;
+        const COSTO_ENVIO_FIJO = 5000;
+        const PRECIO_POR_LETRA_GRABADO = 500; // 👈 Nuestra nueva regla en el backend
+
         const productosValidados = [];
+        let totalProductos = 0;
 
-        // ============================================================
-        // 1. PRIMERA VUELTA: VALIDAR QUE HAYA STOCK DE TODO
-        // (No restamos nada todavía por si falla algún producto)
-        // ============================================================
+        // --- 2. VALIDACIÓN DE STOCK Y PRECIOS ---
         for (const item of items) {
-            const idProducto = item.id;
+            const url = item.documentId
+                ? `http://127.0.0.1:1337/api/productos/${item.documentId}`
+                : `http://127.0.0.1:1337/api/productos?filters[id][$eq]=${item.id}`;
 
-            // Buscamos el producto en Strapi
-            const response = await fetch(`http://127.0.0.1:1337/api/productos?filters[id][$eq]=${idProducto}`, {
-                method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                cache: 'no-store'
-            });
+            const res = await fetch(url, { cache: 'no-store' });
 
-            if (!response.ok) {
-                return NextResponse.json({ error: `Error conectando con Strapi` }, { status: 500 });
+            if (!res.ok) continue;
+
+            const data = await res.json();
+            const productoDB = Array.isArray(data.data) ? data.data[0] : data.data;
+
+            if (!productoDB || productoDB.stock < item.quantity) {
+                return NextResponse.json({ error: `Sin stock suficiente para: ${item.name}` }, { status: 409 });
             }
 
-            const searchResult = await response.json();
+            // 👇 CÁLCULO SEGURO DEL PRECIO DESDE EL BACKEND 👇
+            const precioBaseReal = Number(productoDB.precio);
+            const textoGrabado = item.grabado || "";
+            const costoGrabado = textoGrabado.length * PRECIO_POR_LETRA_GRABADO;
 
-            if (!searchResult.data || searchResult.data.length === 0) {
-                return NextResponse.json({ error: `Producto ID ${idProducto} no encontrado.` }, { status: 400 });
-            }
+            // Este es el precio por unidad que le vamos a mandar a Mercado Pago
+            const precioFinalValido = precioBaseReal + costoGrabado;
+            const nombreReal = productoDB.nombreProducto || item.name;
 
-            // Datos del producto en Strapi
-            const productoStrapi = searchResult.data[0];
-            const stockReal = productoStrapi.stock ?? 0;
-
-            // Validación
-            if (stockReal < item.quantity) {
-                return NextResponse.json(
-                    { error: `Sin stock. Solo quedan ${stockReal} de ${item.name}` },
-                    { status: 409 }
-                );
-            }
-
-            // Guardamos el producto y su stock actual para usarlo en el paso 2
             productosValidados.push({
-                strapiId: productoStrapi.documentId, // IMPORTANTE: Strapi v5 usa documentId para actualizar
-                currentStock: stockReal,
-                qtyToBuy: item.quantity,
-                name: item.name
+                strapiId: productoDB.documentId,
+                nombre: nombreReal,
+                precio: precioFinalValido, // Usamos el precio con el grabado sumado
+                cantidad: item.quantity,
+                grabado: textoGrabado,
+                stockActual: productoDB.stock
             });
+
+            totalProductos += (precioFinalValido * item.quantity);
         }
 
-        // ============================================================
-        // 2. SEGUNDA VUELTA: RESTAR EL STOCK (¡AQUÍ OCURRE LA MAGIA!)
-        // ============================================================
-        console.log("✅ Stock validado. Procediendo a descontar...");
+        // --- 3. CÁLCULO DE ENVÍO ---
+        let costoEnvioFinal = 0;
+        if (totalProductos >= UMBRAL_ENVIO_GRATIS) {
+            costoEnvioFinal = 0;
+        } else {
+            costoEnvioFinal = COSTO_ENVIO_FIJO;
+        }
 
+        const totalA_Pagar = totalProductos + costoEnvioFinal;
+
+        // --- 4. GUARDAR ORDEN EN STRAPI (PostgreSQL) ---
+        const datosParaStrapi: Record<string, any> = {
+            fecha: new Date().toISOString(),
+            total: totalA_Pagar,
+            estado: 'pendiente',
+            costo_envio: costoEnvioFinal,
+        };
+
+        if (userId) {
+            datosParaStrapi.users_permissions_user = userId;
+        }
+
+        const ordenRes = await fetch(`http://127.0.0.1:1337/api/ordens`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: datosParaStrapi
+            })
+        });
+
+        const ordenData = await ordenRes.json();
+
+        if (!ordenRes.ok) {
+            throw new Error(ordenData.error?.message || "Error guardando la orden en Strapi");
+        }
+
+        const ordenId = ordenData.data.documentId;
+
+        // --- 5. GUARDAR ITEMS DE LA ORDEN ---
         for (const prod of productosValidados) {
-            const nuevoStock = prod.currentStock - prod.qtyToBuy;
-
-            // Llamada a Strapi para actualizar (PUT)
-            const updateResponse = await fetch(`http://127.0.0.1:1337/api/productos/${prod.strapiId}`, {
-                method: 'PUT',
+            await fetch(`http://127.0.0.1:1337/api/item-ordens`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     data: {
-                        stock: nuevoStock
+                        orden: ordenId,
+                        producto: prod.strapiId,
+                        cantidad: prod.cantidad,
+                        precio_unitario: prod.precio, // Se guarda el precio con grabado incluido
+                        d_grabado: prod.grabado
                     }
                 })
             });
 
-            if (updateResponse.ok) {
-                console.log(`📉 STOCK ACTUALIZADO: ${prod.name} bajó de ${prod.currentStock} a ${nuevoStock}`);
-            } else {
-                console.error(`⚠️ Error al actualizar stock de ${prod.name}`);
-                // Nota: En un sistema real aquí haríamos un "rollback", pero para la demo está bien.
-            }
+            // --- 6. DESCONTAR STOCK ---
+            await fetch(`http://127.0.0.1:1337/api/productos/${prod.strapiId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: { stock: prod.stockActual - prod.cantidad }
+                })
+            });
         }
 
-        // ============================================================
-        // 3. GENERAR LINK DE MERCADO PAGO
-        // ============================================================
-        const formattedItems = items.map((item: any) => ({
-            id: item.id.toString(),
-            title: item.name,
-            unit_price: Number(item.price),
-            quantity: Number(item.quantity),
+        // --- 7. MERCADO PAGO ---
+        const itemsMP = productosValidados.map(prod => ({
+            id: prod.strapiId,
+            title: prod.nombre,
+            description: prod.grabado ? `Grabado: "${prod.grabado}"` : "Sin grabado", // Le ponemos comillas al grabado para que resalte
+            unit_price: prod.precio,
+            quantity: prod.cantidad,
             currency_id: "ARS",
         }));
 
-        const preferenceData = {
-            items: formattedItems,
-            back_urls: {
-                // Asegúrate que esta URL sea la correcta de tu NGROK o Localhost
-                success: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-exitosa",
-                failure: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-fallida",
-                pending: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-pendiente"
-            },
-            auto_return: "approved",
-        };
+        if (costoEnvioFinal > 0) {
+            itemsMP.push({
+                id: "costo-envio",
+                title: "Envío a domicilio",
+                description: "Costo de envío fijo",
+                unit_price: costoEnvioFinal,
+                quantity: 1,
+                currency_id: "ARS"
+            });
+        }
 
-        const mpResponse = await fetch("https://api.mercadopago.com/checkout/preferences", {
+        const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${process.env.MP_ACCESS_TOKEN}`
             },
-            body: JSON.stringify(preferenceData),
+            body: JSON.stringify({
+                items: itemsMP,
+                external_reference: ordenId,
+                back_urls: {
+                    success: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-exitosa",
+                    failure: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-fallida",
+                    pending: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-pendiente"
+                },
+                auto_return: "approved",
+            }),
         });
 
-        const data = await mpResponse.json();
+        const mpData = await mpRes.json();
 
-        if (!mpResponse.ok) {
-            return NextResponse.json({ error: "Error al generar pago" }, { status: 400 });
+        if (!mpRes.ok || !mpData.init_point) {
+            console.error("❌ ERROR DE MERCADO PAGO:", JSON.stringify(mpData, null, 2));
+            throw new Error(mpData.message || "Mercado Pago rechazó la preferencia");
         }
 
-        return NextResponse.json({ url: data.init_point });
+        return NextResponse.json({ url: mpData.init_point });
 
-    } catch (error: any) {
-        console.error("❌ ERROR SERVIDOR:", error);
-        return NextResponse.json(
-            { error: "Error interno", details: error.message },
-            { status: 500 }
-        );
+    } catch (error) {
+        console.error("❌ Error Checkout:", error);
+        const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

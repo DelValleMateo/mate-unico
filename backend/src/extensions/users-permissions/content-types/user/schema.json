@@ -73,10 +73,23 @@
       "type": "string"
     },
     "dni": {
-      "type": "string"
+      "type": "string",
+      "unique": true
     },
     "telefono": {
       "type": "string"
+    },
+    "ordenes": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::orden.orden",
+      "mappedBy": "usuario"
+    },
+    "ordens": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::orden.orden",
+      "mappedBy": "usuario"
     }
   }
 }
