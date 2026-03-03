@@ -94,9 +94,9 @@ export async function POST(request: Request) {
             items: formattedItems,
             back_urls: {
                 // Asegúrate que esta URL sea la correcta de tu NGROK o Localhost
-                success: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-exitosa",
-                failure: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-fallida",
-                pending: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-pendiente"
+                success: "https://multisacculate-bari-submicroscopically.ngrok-free.dev/compra-exitosa",
+                failure: "https://multisacculate-bari-submicroscopically.ngrok-free.dev/compra-fallida",
+                pending: "https://https://multisacculate-bari-submicroscopically.ngrok-free.dev/compra-pendiente"
             },
             auto_return: "approved",
         };
