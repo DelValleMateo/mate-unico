@@ -66,11 +66,38 @@
       "inversedBy": "users",
       "configurable": false
     },
+<<<<<<< HEAD
     "orders": {
       "type": "relation",
       "relation": "oneToMany",
       "target": "api::order.order",
       "mappedBy": "users_permissions_user"
+=======
+    "nombre": {
+      "type": "string"
+    },
+    "apellido": {
+      "type": "string"
+    },
+    "dni": {
+      "type": "string",
+      "unique": true
+    },
+    "telefono": {
+      "type": "string"
+    },
+    "ordenes": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::orden.orden",
+      "mappedBy": "usuario"
+    },
+    "ordens": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::orden.orden",
+      "mappedBy": "usuario"
+>>>>>>> ec74a5b3334aee933b643d6abb1e2d172a5e3528
     }
   }
 }

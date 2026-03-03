@@ -3,29 +3,35 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Star, X, CheckCircle } from "lucide-react";
+import { Star, X, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 
 export default function CompraExitosa() {
     const searchParams = useSearchParams();
     const paymentId = searchParams.get("payment_id");
+    const { clearCart } = useCart();
 
-    // Estado para la reseña
+    // Array de productos comprados y el índice actual del carrusel
+    const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    // Estados del formulario de reseña
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [comment, setComment] = useState("");
-    const [reviewSent, setReviewSent] = useState(false);
 
-    // Estado inicial (Placeholder por si falla la memoria)
-    const [purchasedItem, setPurchasedItem] = useState({
-        name: "Cargando producto...",
-        price: 0,
-        quantity: 0,
-        image: "/placeholder.png",
-        date: new Date().toLocaleDateString("es-AR"),
-    });
+    // Objeto que guarda qué índices ya fueron reseñados { 0: true, 1: false, etc. }
+    const [reviewsSent, setReviewsSent] = useState<Record<number, boolean>>({});
+
+    // Cada vez que cambiás de foto en el carrusel, limpiamos las estrellas y el texto
+    useEffect(() => {
+        setRating(0);
+        setHoverRating(0);
+        setComment("");
+    }, [currentIndex]);
 
     // =========================================================================
-    // 1. REDIRECCIÓN DE NGROK (Tu truco de seguridad)
+    // 1. REDIRECCIÓN DE NGROK
     // =========================================================================
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -39,45 +45,56 @@ export default function CompraExitosa() {
     }, []);
 
     // =========================================================================
-    // 2. RECUPERAR DATOS REALES DE LA COMPRA (LocalStorage)
+    // 2. RECUPERAR DATOS Y VACIAR CARRITO
     // =========================================================================
     useEffect(() => {
-        // Buscamos qué guardamos antes de ir a pagar
-        const datosGuardados = localStorage.getItem("ultimaCompra");
+        const datosGuardados = localStorage.getItem("ultimaCompra") || localStorage.getItem("mateunico_cart");
 
         if (datosGuardados) {
             try {
                 const items = JSON.parse(datosGuardados);
-                if (items && items.length > 0) {
-                    // Tomamos el primer item para mostrar en el recibo (demo)
-                    // Si tu carrito tiene muchos, mostramos el principal
-                    const itemReal = items[0];
-
-                    setPurchasedItem({
-                        name: itemReal.name || itemReal.nombreProducto || "Producto",
-                        price: itemReal.price || itemReal.precio || 0,
-                        quantity: itemReal.quantity || 1,
-                        // Usamos la imagen que guardaste en el carrito.
-                        // Si guardaste la URL completa, genial. Si no, ajustamos.
-                        image: itemReal.img || itemReal.image || "/placeholder.png",
-                        date: new Date().toLocaleDateString("es-AR"),
-                    });
+                if (Array.isArray(items) && items.length > 0) {
+                    setPurchasedItems(items);
                 }
             } catch (error) {
-                console.error("Error leyendo ultimaCompra:", error);
+                console.error("Error leyendo datos:", error);
             }
         }
+
+        // Vaciamos el carrito real para que empiece de cero!
+        clearCart();
+
+        // 👇 ESTA ES LA MAGIA: Corchetes vacíos para evitar el bucle infinito
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Resto de lógica (reviews, etc...)
-    useEffect(() => {
-        if (paymentId) console.log("Procesando pago ID:", paymentId);
-    }, [paymentId]);
-
     const handleSubmitReview = () => {
-        if (rating === 0) return alert("Por favor selecciona una calificación");
-        setReviewSent(true);
+        if (rating === 0) return alert("Por favor seleccioná una calificación");
+
+        // Marcamos SOLO el producto actual como reseñado
+        setReviewsSent((prev) => ({ ...prev, [currentIndex]: true }));
     };
+
+    // Funciones del Carrusel
+    const nextItem = () => {
+        setCurrentIndex((prev) => (prev === purchasedItems.length - 1 ? 0 : prev + 1));
+    };
+
+    const prevItem = () => {
+        setCurrentIndex((prev) => (prev === 0 ? purchasedItems.length - 1 : prev - 1));
+    };
+
+    const currentItem = purchasedItems.length > 0 ? purchasedItems[currentIndex] : {
+        name: "Cargando producto...",
+        price: 0,
+        quantity: 0,
+        img: "/placeholder.png",
+        grabado: "",
+        color: ""
+    };
+
+    // Verificamos si EL PRODUCTO ACTUAL ya tiene la reseña enviada
+    const isCurrentReviewSent = reviewsSent[currentIndex] || false;
 
     return (
         <div className="w-full flex items-center justify-center py-12 px-4">
@@ -86,7 +103,7 @@ export default function CompraExitosa() {
                 {/* Header */}
                 <div className="flex justify-between items-center p-5 border-b border-gray-100">
                     <div className="w-8"></div>
-                    <h2 className="text-2xl font-semibold text-gray-800 text-center">Gracias por tu compra!</h2>
+                    <h2 className="text-2xl font-semibold text-gray-800 text-center">¡Gracias por tu compra!</h2>
                     <Link href="/">
                         <button className="p-2 hover:bg-gray-100 rounded-full transition duration-200">
                             <X className="w-6 h-6 text-gray-500" />
@@ -97,22 +114,43 @@ export default function CompraExitosa() {
                 {/* Cuerpo */}
                 <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
 
-                    {/* FOTO DINÁMICA */}
+                    {/* FOTO DINÁMICA CON CARRUSEL */}
                     <div className="flex flex-col items-center justify-start">
-                        <div className="w-full aspect-square relative rounded-lg overflow-hidden shadow-sm border border-gray-200 bg-gray-50">
+                        <div className="w-full aspect-square relative rounded-lg overflow-hidden shadow-sm border border-gray-200 bg-gray-50 group">
+
                             <img
-                                src={purchasedItem.image}
-                                alt={purchasedItem.name}
-                                className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
+                                src={currentItem.img || currentItem.image || "/placeholder.png"}
+                                alt={currentItem.name || currentItem.nombreProducto}
+                                className="object-cover w-full h-full transition-transform duration-500"
                                 onError={(e) => {
-                                    // Fallback si la imagen falla
                                     (e.target as HTMLImageElement).src = "/placeholder.png";
                                 }}
                             />
+
+                            {/* Controles del Carrusel */}
+                            {purchasedItems.length > 1 && (
+                                <>
+                                    <button
+                                        onClick={prevItem}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={nextItem}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100"
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-widest">
+                                        {currentIndex + 1} / {purchasedItems.length}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
-                    {/* RESEÑA & DATOS */}
+                    {/* RESEÑA */}
                     <div className="flex flex-col space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="font-bold text-lg text-gray-800">Reseña</h3>
@@ -121,10 +159,11 @@ export default function CompraExitosa() {
                                     <button
                                         key={star}
                                         type="button"
+                                        disabled={isCurrentReviewSent}
                                         onClick={() => setRating(star)}
-                                        onMouseEnter={() => setHoverRating(star)}
-                                        onMouseLeave={() => setHoverRating(0)}
-                                        className="focus:outline-none transition-transform hover:scale-110"
+                                        onMouseEnter={() => !isCurrentReviewSent && setHoverRating(star)}
+                                        onMouseLeave={() => !isCurrentReviewSent && setHoverRating(0)}
+                                        className={`focus:outline-none transition-transform ${isCurrentReviewSent ? 'cursor-default' : 'hover:scale-110'}`}
                                     >
                                         <Star className={`w-6 h-6 ${star <= (hoverRating || rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
                                     </button>
@@ -132,11 +171,11 @@ export default function CompraExitosa() {
                             </div>
                         </div>
 
-                        {!reviewSent ? (
+                        {!isCurrentReviewSent ? (
                             <>
                                 <textarea
                                     className="w-full border border-gray-300 rounded-md p-3 text-sm text-gray-900 focus:ring-2 focus:ring-black focus:border-transparent outline-none resize-none h-32 bg-gray-50 placeholder-gray-500"
-                                    placeholder="Deja tu opinion sobre el producto..."
+                                    placeholder="Dejá tu opinión sobre este producto..."
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
                                 />
@@ -160,19 +199,31 @@ export default function CompraExitosa() {
                             <tbody>
                                 <tr className="border-b border-gray-200">
                                     <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50 w-1/3">Nombre</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right truncate max-w-[200px]">{purchasedItem.name}</td>
+                                    <td className="px-4 py-3 text-gray-600 font-medium text-right truncate max-w-[200px]">
+                                        {currentItem.name || currentItem.nombreProducto} {currentItem.color && `(${currentItem.color})`}
+                                    </td>
                                 </tr>
+
+                                {currentItem.grabado && (
+                                    <tr className="border-b border-gray-200 bg-amber-50/50">
+                                        <th className="px-4 py-3 font-bold text-amber-800 bg-amber-100/50">Grabado Solicitado</th>
+                                        <td className="px-4 py-3 text-amber-900 font-bold text-right italic uppercase tracking-wider">
+                                            "{currentItem.grabado}"
+                                        </td>
+                                    </tr>
+                                )}
+
                                 <tr className="border-b border-gray-200">
                                     <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Cantidad</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">{purchasedItem.quantity}</td>
+                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">{currentItem.quantity}</td>
                                 </tr>
                                 <tr className="border-b border-gray-200">
-                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Precio</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">${purchasedItem.price.toLocaleString("es-AR")}</td>
+                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Precio Unitario</th>
+                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">${Number(currentItem.price || currentItem.precio || 0).toLocaleString("es-AR")}</td>
                                 </tr>
                                 <tr>
-                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Fecha</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">{purchasedItem.date}</td>
+                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Fecha de Compra</th>
+                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">{new Date().toLocaleDateString("es-AR")}</td>
                                 </tr>
                             </tbody>
                         </table>

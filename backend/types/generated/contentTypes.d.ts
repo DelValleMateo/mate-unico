@@ -463,6 +463,77 @@ export interface ApiCarritoCarrito extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiItemOrdenItemOrden extends Struct.CollectionTypeSchema {
+  collectionName: 'item_ordens';
+  info: {
+    displayName: 'ItemOrden';
+    pluralName: 'item-ordens';
+    singularName: 'item-orden';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    cantidad: Schema.Attribute.Integer;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    d_grabado: Schema.Attribute.String;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::item-orden.item-orden'
+    > &
+      Schema.Attribute.Private;
+    orden: Schema.Attribute.Relation<'manyToOne', 'api::orden.orden'>;
+    precio_unitario: Schema.Attribute.Decimal;
+    producto: Schema.Attribute.Relation<'manyToOne', 'api::producto.producto'>;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiOrdenOrden extends Struct.CollectionTypeSchema {
+  collectionName: 'ordens';
+  info: {
+    displayName: 'Orden';
+    pluralName: 'ordens';
+    singularName: 'orden';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    costo_envio: Schema.Attribute.Decimal;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    direccion_envio_cp: Schema.Attribute.String;
+    estado: Schema.Attribute.Enumeration<['pendiente', 'pagado', 'cancelado']> &
+      Schema.Attribute.DefaultTo<'pendiente'>;
+    fecha: Schema.Attribute.DateTime;
+    item_ordens: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::item-orden.item-orden'
+    >;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::orden.orden'> &
+      Schema.Attribute.Private;
+    payment_id: Schema.Attribute.String;
+    publishedAt: Schema.Attribute.DateTime;
+    total: Schema.Attribute.Decimal;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    usuario: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiOrderOrder extends Struct.CollectionTypeSchema {
   collectionName: 'orders';
   info: {
@@ -1056,6 +1127,8 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::carrito.carrito': ApiCarritoCarrito;
+      'api::item-orden.item-orden': ApiItemOrdenItemOrden;
+      'api::orden.orden': ApiOrdenOrden;
       'api::order.order': ApiOrderOrder;
       'api::producto.producto': ApiProductoProducto;
       'plugin::content-releases.release': PluginContentReleasesRelease;

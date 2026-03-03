@@ -1,37 +1,82 @@
-// frontend/app/(auth)/login/page.tsx - ¡CON PLACEHOLDERS!
+// frontend/app/(auth)/login/page.tsx
 
 'use client';
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { LogIn } from 'lucide-react'; 
+import { useRouter } from 'next/navigation';
+import { LogIn } from 'lucide-react';
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('UI: Login con:', { email, password });
+    setError('');
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        'http://localhost:1337/api/auth/local',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            identifier: email, // ⚠️ Strapi usa identifier
+            password: password,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Error al iniciar sesión');
+      }
+
+      // 🔐 Guardamos JWT y usuario
+      localStorage.setItem('jwt', data.jwt);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      // 🧪 Logs para verificar
+      console.log('JWT guardado:', data.jwt);
+      console.log('Usuario guardado:', data.user);
+      console.log('LocalStorage ahora:', localStorage.getItem('jwt'));
+
+      // 🚀 Redirigir al home
+      router.push('/');
+
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error desconocido');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
-  
+
   return (
-    // Texto principal en Negro para contrastar con el fondo Blanco del layout
-    <div className="text-gray-900"> 
-      
-      {/* Título "BIENVENIDO" */}
+    <div className="text-gray-900">
       <h1 className="text-2xl font-bold mb-1">
         Bienvenido
       </h1>
       <p className="text-sm text-gray-600 mb-6">
         Iniciar con email
       </p>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
-        
-        {/* Campo Email - MODIFICADO */}
+
         <div>
-          {/* Eliminamos <label> y usamos placeholder */}
           <input
             id="email"
             name="email"
@@ -40,64 +85,69 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-black focus:ring-black"
-            placeholder="Email" // PLACEHOLDER
+            placeholder="Email"
           />
         </div>
 
-        {/* Campo Contraseña - MODIFICADO */}
         <div>
-          {/* Eliminamos <label> y usamos placeholder */}
           <input
             id="password"
             name="password"
-            type="password" 
+            type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:border-black focus:ring-black"
-            placeholder="Contraseña" // PLACEHOLDER
+            placeholder="Contraseña"
           />
         </div>
 
-        {/* Botón Principal: INICIAR SESIÓN (Negro) */}
+        {error && (
+          <p className="text-red-500 text-sm">{error}</p>
+        )}
+
         <button
           type="submit"
-          className="w-full flex items-center justify-center space-x-2 bg-black text-white py-3 mt-6 rounded-md font-semibold hover:bg-gray-800 transition duration-200"
+          disabled={loading}
+          className="w-full flex items-center justify-center space-x-2 bg-black text-white py-3 mt-6 rounded-md font-semibold hover:bg-gray-800 transition duration-200 disabled:opacity-50"
         >
-          <span>Iniciar Sesión</span>
+          <LogIn className="h-5 w-5" />
+          <span>{loading ? 'Ingresando...' : 'Iniciar Sesión'}</span>
         </button>
       </form>
 
-      {/* Botón de Google */}
       <button
         type="button"
         className="w-full flex items-center justify-center space-x-2 border border-gray-300 text-gray-800 py-3 mt-3 rounded-md font-semibold hover:bg-gray-50 transition duration-200"
       >
-        <span className="text-lg font-google-sans">G</span> 
+        <span className="text-lg font-google-sans">G</span>
         <span>Continuar con Google</span>
       </button>
 
-      {/* Opciones Adicionales */}
       <div className="mt-4 flex justify-between items-center text-xs">
-        {/* Checkbox Recuérdame */}
         <div className="flex items-center space-x-1">
-          <input type="checkbox" id="remember-me" className="h-4 w-4 text-black border-gray-300 rounded focus:ring-black" />
-          <label htmlFor="remember-me" className="text-gray-600">Recuérdame</label>
+          <input
+            type="checkbox"
+            id="remember-me"
+            className="h-4 w-4 text-black border-gray-300 rounded focus:ring-black"
+          />
+          <label htmlFor="remember-me" className="text-gray-600">
+            Recuérdame
+          </label>
         </div>
 
-        {/* Enlace Forgot Password */}
-        <Link 
-          href="/recuperar" 
+        <Link
+          href="/recuperar"
           className="text-gray-600 hover:text-black hover:underline"
         >
           Forgot Password?
         </Link>
       </div>
-      
-      {/* Opción de Crear Cuenta / O create an account */}
+
       <div className="mt-4 text-center text-xs text-gray-600">
-        Or <Link 
-          href="/registro" 
+        Or{' '}
+        <Link
+          href="/registro"
           className="text-black font-semibold hover:underline"
         >
           create an account
