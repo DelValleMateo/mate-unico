@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Star, X, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext"; // <--- Importamos el contexto de Nacho
 
 export default function CompraExitosa() {
     const searchParams = useSearchParams();
-    const paymentId = searchParams.get("payment_id");
     const { clearCart } = useCart();
+    const { user, jwt } = useAuth(); // <--- Traemos el usuario y el token
 
     // Array de productos comprados y el índice actual del carrusel
     const [purchasedItems, setPurchasedItems] = useState<any[]>([]);
@@ -20,23 +21,20 @@ export default function CompraExitosa() {
     const [hoverRating, setHoverRating] = useState(0);
     const [comment, setComment] = useState("");
 
-    // Objeto que guarda qué índices ya fueron reseñados { 0: true, 1: false, etc. }
+    // Objeto que guarda qué índices ya fueron reseñados
     const [reviewsSent, setReviewsSent] = useState<Record<number, boolean>>({});
 
-    // Cada vez que cambiás de foto en el carrusel, limpiamos las estrellas y el texto
+    // Cada vez que cambiás de foto, limpiamos las estrellas y el texto
     useEffect(() => {
         setRating(0);
         setHoverRating(0);
         setComment("");
     }, [currentIndex]);
 
-    // =========================================================================
-    // 1. REDIRECCIÓN DE NGROK
-    // =========================================================================
+    // 1. REDIRECCIÓN DE NGROK (Mantenemos tu lógica original)
     useEffect(() => {
         if (typeof window !== "undefined") {
             if (window.location.hostname.includes("ngrok")) {
-                console.log("🔄 Detectado Ngrok, volviendo a Localhost...");
                 const currentParams = window.location.search;
                 const targetUrl = `http://localhost:3001/compra-exitosa${currentParams}`;
                 window.location.href = targetUrl;
@@ -44,12 +42,9 @@ export default function CompraExitosa() {
         }
     }, []);
 
-    // =========================================================================
     // 2. RECUPERAR DATOS Y VACIAR CARRITO
-    // =========================================================================
     useEffect(() => {
         const datosGuardados = localStorage.getItem("ultimaCompra") || localStorage.getItem("mateunico_cart");
-
         if (datosGuardados) {
             try {
                 const items = JSON.parse(datosGuardados);
@@ -60,19 +55,52 @@ export default function CompraExitosa() {
                 console.error("Error leyendo datos:", error);
             }
         }
-
-        // Vaciamos el carrito real para que empiece de cero!
         clearCart();
-
-        // 👇 ESTA ES LA MAGIA: Corchetes vacíos para evitar el bucle infinito
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleSubmitReview = () => {
+    // =========================================================================
+    // 3. ENVIAR RESEÑA A STRAPI (La lógica nueva)
+    // =========================================================================
+    const handleSubmitReview = async () => {
         if (rating === 0) return alert("Por favor seleccioná una calificación");
+        
+        // Verificamos si hay sesión iniciada (Paso 5.2 de Nacho)
+        if (!user || !jwt) {
+            return alert("Debes estar logueado para dejar una reseña");
+        }
 
-        // Marcamos SOLO el producto actual como reseñado
-        setReviewsSent((prev) => ({ ...prev, [currentIndex]: true }));
+        const currentItem = purchasedItems[currentIndex];
+
+        // Estructura para Strapi
+        const reviewData = {
+            data: {
+                estrellas: rating,
+                comentario: comment,
+                users_permissions_user: user.id, // Relación con el usuario de Nacho
+                producto: currentItem.id || 1, // El ID del producto (importante que esté en el carrito)
+            }
+        };
+
+        try {
+            const res = await fetch('http://localhost:1337/api/resenas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${jwt}` // Token de seguridad
+                },
+                body: JSON.stringify(reviewData),
+            });
+
+            if (res.ok) {
+                // Si Strapi confirma, marcamos como enviado en la UI
+                setReviewsSent((prev) => ({ ...prev, [currentIndex]: true }));
+            } else {
+                alert("Hubo un error al guardar la reseña en la base de datos.");
+            }
+        } catch (error) {
+            console.error("Error enviando reseña:", error);
+        }
     };
 
     // Funciones del Carrusel
@@ -93,20 +121,19 @@ export default function CompraExitosa() {
         color: ""
     };
 
-    // Verificamos si EL PRODUCTO ACTUAL ya tiene la reseña enviada
     const isCurrentReviewSent = reviewsSent[currentIndex] || false;
 
     return (
         <div className="w-full flex items-center justify-center py-12 px-4">
-            <div className="bg-white w-full max-w-3xl rounded-lg shadow-2xl overflow-hidden relative animate-fade-in-up border border-gray-200">
+            <div className="bg-white w-full max-w-3xl rounded-lg shadow-2xl overflow-hidden relative border border-gray-200 animate-in fade-in zoom-in duration-500">
 
                 {/* Header */}
                 <div className="flex justify-between items-center p-5 border-b border-gray-100">
                     <div className="w-8"></div>
-                    <h2 className="text-2xl font-semibold text-gray-800 text-center">¡Gracias por tu compra!</h2>
+                    <h2 className="text-2xl font-semibold text-gray-800 text-center uppercase tracking-tighter">¡Compra Realizada!</h2>
                     <Link href="/">
                         <button className="p-2 hover:bg-gray-100 rounded-full transition duration-200">
-                            <X className="w-6 h-6 text-gray-500" />
+                            <X className="w-6 h-6 text-gray-400" />
                         </button>
                     </Link>
                 </div>
@@ -117,29 +144,18 @@ export default function CompraExitosa() {
                     {/* FOTO DINÁMICA CON CARRUSEL */}
                     <div className="flex flex-col items-center justify-start">
                         <div className="w-full aspect-square relative rounded-lg overflow-hidden shadow-sm border border-gray-200 bg-gray-50 group">
-
                             <img
                                 src={currentItem.img || currentItem.image || "/placeholder.png"}
                                 alt={currentItem.name || currentItem.nombreProducto}
                                 className="object-cover w-full h-full transition-transform duration-500"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = "/placeholder.png";
-                                }}
                             />
 
-                            {/* Controles del Carrusel */}
                             {purchasedItems.length > 1 && (
                                 <>
-                                    <button
-                                        onClick={prevItem}
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100"
-                                    >
+                                    <button onClick={prevItem} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-md transition-all">
                                         <ChevronLeft className="w-5 h-5" />
                                     </button>
-                                    <button
-                                        onClick={nextItem}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100"
-                                    >
+                                    <button onClick={nextItem} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white text-black p-2 rounded-full shadow-md transition-all">
                                         <ChevronRight className="w-5 h-5" />
                                     </button>
                                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-widest">
@@ -153,7 +169,7 @@ export default function CompraExitosa() {
                     {/* RESEÑA */}
                     <div className="flex flex-col space-y-4">
                         <div className="flex items-center justify-between">
-                            <h3 className="font-bold text-lg text-gray-800">Reseña</h3>
+                            <h3 className="font-bold text-lg text-gray-800 uppercase tracking-tight">Tu Calificación</h3>
                             <div className="flex space-x-1">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                     <button
@@ -174,19 +190,22 @@ export default function CompraExitosa() {
                         {!isCurrentReviewSent ? (
                             <>
                                 <textarea
-                                    className="w-full border border-gray-300 rounded-md p-3 text-sm text-gray-900 focus:ring-2 focus:ring-black focus:border-transparent outline-none resize-none h-32 bg-gray-50 placeholder-gray-500"
-                                    placeholder="Dejá tu opinión sobre este producto..."
+                                    className="w-full border border-gray-300 rounded-md p-3 text-sm text-gray-900 focus:ring-1 focus:ring-black outline-none resize-none h-32 bg-gray-50 placeholder-gray-400"
+                                    placeholder="Contanos qué te pareció el mate..."
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
                                 />
-                                <button onClick={handleSubmitReview} className="bg-black text-white py-2 px-6 rounded hover:bg-gray-800 transition shadow-lg text-sm font-medium self-end">
-                                    Enviar Opinión
+                                <button 
+                                    onClick={handleSubmitReview} 
+                                    className="bg-black text-white py-2 px-6 rounded-full hover:bg-gray-800 transition shadow-lg text-[10px] font-bold uppercase tracking-widest self-end"
+                                >
+                                    Enviar Reseña
                                 </button>
                             </>
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-44 bg-green-50 rounded-md text-green-700 border border-green-200 animate-pulse">
+                            <div className="flex flex-col items-center justify-center h-44 bg-green-50 rounded-md text-green-700 border border-green-200">
                                 <CheckCircle className="w-10 h-10 mb-2" />
-                                <p className="font-medium text-lg">¡Gracias por opinar!</p>
+                                <p className="font-bold uppercase text-xs tracking-widest text-center">¡Reseña guardada con éxito!</p>
                             </div>
                         )}
                     </div>
@@ -194,36 +213,32 @@ export default function CompraExitosa() {
 
                 {/* TABLA DE DETALLES */}
                 <div className="px-8 pb-8">
-                    <div className="border border-gray-200 rounded-md overflow-hidden">
-                        <table className="w-full text-sm text-left">
+                    <div className="border border-gray-100 rounded-md overflow-hidden shadow-sm">
+                        <table className="w-full text-xs text-left">
                             <tbody>
-                                <tr className="border-b border-gray-200">
-                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50 w-1/3">Nombre</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right truncate max-w-[200px]">
+                                <tr className="border-b border-gray-100">
+                                    <th className="px-4 py-3 font-bold text-gray-500 bg-gray-50/50 uppercase tracking-widest w-1/3">Producto</th>
+                                    <td className="px-4 py-3 text-gray-800 font-bold text-right truncate">
                                         {currentItem.name || currentItem.nombreProducto} {currentItem.color && `(${currentItem.color})`}
                                     </td>
                                 </tr>
-
                                 {currentItem.grabado && (
-                                    <tr className="border-b border-gray-200 bg-amber-50/50">
-                                        <th className="px-4 py-3 font-bold text-amber-800 bg-amber-100/50">Grabado Solicitado</th>
-                                        <td className="px-4 py-3 text-amber-900 font-bold text-right italic uppercase tracking-wider">
+                                    <tr className="border-b border-gray-100 bg-amber-50/30">
+                                        <th className="px-4 py-3 font-bold text-amber-700 bg-amber-50">Grabado Personalizado</th>
+                                        <td className="px-4 py-3 text-amber-900 font-black text-right italic uppercase">
                                             "{currentItem.grabado}"
                                         </td>
                                     </tr>
                                 )}
-
-                                <tr className="border-b border-gray-200">
-                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Cantidad</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">{currentItem.quantity}</td>
-                                </tr>
-                                <tr className="border-b border-gray-200">
-                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Precio Unitario</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">${Number(currentItem.price || currentItem.precio || 0).toLocaleString("es-AR")}</td>
+                                <tr className="border-b border-gray-100">
+                                    <th className="px-4 py-3 font-bold text-gray-500 bg-gray-50/50 uppercase tracking-widest">Cantidad</th>
+                                    <td className="px-4 py-3 text-gray-800 font-bold text-right">{currentItem.quantity}</td>
                                 </tr>
                                 <tr>
-                                    <th className="px-4 py-3 font-bold text-gray-700 bg-gray-50">Fecha de Compra</th>
-                                    <td className="px-4 py-3 text-gray-600 font-medium text-right">{new Date().toLocaleDateString("es-AR")}</td>
+                                    <th className="px-4 py-3 font-bold text-gray-500 bg-gray-50/50 uppercase tracking-widest">Total Abonado</th>
+                                    <td className="px-4 py-3 text-green-600 font-bold text-right text-sm">
+                                        ${Number(currentItem.price || 0).toLocaleString("es-AR")}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>

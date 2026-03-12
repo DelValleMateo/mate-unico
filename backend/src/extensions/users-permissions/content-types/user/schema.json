@@ -66,13 +66,6 @@
       "inversedBy": "users",
       "configurable": false
     },
-<<<<<<< HEAD
-    "orders": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::order.order",
-      "mappedBy": "users_permissions_user"
-=======
     "nombre": {
       "type": "string"
     },
@@ -97,7 +90,12 @@
       "relation": "oneToMany",
       "target": "api::orden.orden",
       "mappedBy": "usuario"
->>>>>>> ec74a5b3334aee933b643d6abb1e2d172a5e3528
+    },
+    "reviews": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::review.review",
+      "mappedBy": "users_permissions_user"
     }
   }
 }
