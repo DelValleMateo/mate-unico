@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Star, X, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext"; // <--- Importamos el contexto de Nacho
 
-export default function CompraExitosa() {
+function CompraExitosaContent() {
     const searchParams = useSearchParams();
     const { clearCart } = useCart();
     const { user, jwt } = useAuth(); // <--- Traemos el usuario y el token
@@ -31,32 +31,37 @@ export default function CompraExitosa() {
         setComment("");
     }, [currentIndex]);
 
-    // 1. REDIRECCIÓN DE NGROK (Mantenemos tu lógica original)
+    // =========================================================================
+    // LÓGICA INTELIGENTE: Redirección Ngrok + Vaciado de Carrito
+    // =========================================================================
     useEffect(() => {
         if (typeof window !== "undefined") {
+            // 1. Si detecta Ngrok, HUYE a localhost sin tocar nada
             if (window.location.hostname.includes("ngrok")) {
                 const currentParams = window.location.search;
-                const targetUrl = `http://localhost:3001/compra-exitosa${currentParams}`;
+                const targetUrl = `http://localhost:3000/compra-exitosa${currentParams}`;
                 window.location.href = targetUrl;
+                return; // 🛑 Cortamos la ejecución acá para que NO vacíe el carrito por error
             }
-        }
-    }, []);
 
-    // 2. RECUPERAR DATOS Y VACIAR CARRITO
-    useEffect(() => {
-        const datosGuardados = localStorage.getItem("ultimaCompra") || localStorage.getItem("mateunico_cart");
-        if (datosGuardados) {
-            try {
-                const items = JSON.parse(datosGuardados);
-                if (Array.isArray(items) && items.length > 0) {
-                    setPurchasedItems(items);
+            // 2. Si ya llegó a salvo a localhost, RECUPERA DATOS Y VACÍA EL CARRITO
+            const datosGuardados = localStorage.getItem("ultimaCompra") || localStorage.getItem("mateunico_cart");
+
+            if (datosGuardados) {
+                try {
+                    const items = JSON.parse(datosGuardados);
+                    if (Array.isArray(items) && items.length > 0) {
+                        setPurchasedItems(items);
+                    }
+                } catch (error) {
+                    console.error("Error leyendo datos:", error);
                 }
-            } catch (error) {
-                console.error("Error leyendo datos:", error);
             }
+
+            console.log("🛒 Vaciando el carrito...");
+            clearCart(); // Vaciamos el carrito real para que empiece de cero
         }
-        clearCart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // =========================================================================
@@ -246,5 +251,14 @@ export default function CompraExitosa() {
                 </div>
             </div>
         </div>
+    );
+}
+
+// Envolvemos el componente en un Suspense para que Next.js compile feliz
+export default function CompraExitosa() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando detalles de tu compra...</div>}>
+            <CompraExitosaContent />
+        </Suspense>
     );
 }
