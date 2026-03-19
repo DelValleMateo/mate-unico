@@ -5,6 +5,7 @@ import "./globals.css";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { CartProvider } from "../context/CartContext";
+import { AuthProvider } from "../context/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,26 +23,29 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${inter.className} bg-[#0f0f0f] text-gray-200 overflow-x-hidden selection:bg-yellow-600 selection:text-white`}>
         
-        {/* Lógica del Carrito Global */}
-        <CartProvider>
-            
-            {/* Fondo Global */}
-            <div className="fixed inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'url("/fondo-cuero.png")', backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+        {/* El AuthProvider DEBE estar aquí para que el useAuth funcione en toda la página */}
+        <AuthProvider>
+            {/* Lógica del Carrito Global */}
+            <CartProvider>
 
-            <div className="relative z-10 flex flex-col min-h-screen">
-              {/* TU TAREA: El Header va aquí */}
-              <Header />
+              {/* Fondo Global */}
+              <div className="fixed inset-0 z-0 opacity-30 pointer-events-none" style={{ backgroundImage: 'url("/fondo-cuero.png")', backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
 
-              {/* Aquí se renderiza la página que esté viendo el usuario */}
-              <main className="flex-grow">
-                {children}
-              </main>
+              <div className="relative z-10 flex flex-col min-h-screen">
+                {/* TU TAREA: El Header va aquí */}
+                <Header />
 
-              {/* TU TAREA: El Footer va aquí */}
-              <Footer />
-            </div>
+                {/* Aquí se renderiza la página que esté viendo el usuario */}
+                <main className="flex-grow">
+                  {children}
+                </main>
 
-        </CartProvider>
+                {/* TU TAREA: El Footer va aquí */}
+                <Footer />
+              </div>
+
+            </CartProvider>
+        </AuthProvider>
 
       </body>
     </html>
