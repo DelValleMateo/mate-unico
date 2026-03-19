@@ -90,6 +90,12 @@
       "relation": "oneToMany",
       "target": "api::orden.orden",
       "mappedBy": "usuario"
+    },
+    "reviews": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::review.review",
+      "mappedBy": "users_permissions_user"
     }
   }
 }
