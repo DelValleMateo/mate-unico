@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function MercadoPagoButton() {
     const { cart } = useCart();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
 
     const handlePayment = async () => {
@@ -24,7 +26,7 @@ export default function MercadoPagoButton() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ items: cart }),
+                body: JSON.stringify({ items: cart, userId: user?.id }),
             });
 
             const data = await response.json();

@@ -463,6 +463,12 @@ export interface ApiCarritoCarrito extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiCuponCupon extends Struct.CollectionTypeSchema {
+  collectionName: 'cupons';
+  info: {
+    displayName: 'Cupon';
+    pluralName: 'cupons';
+    singularName: 'cupon';
 export interface ApiItemOrdenItemOrden extends Struct.CollectionTypeSchema {
   collectionName: 'item_ordens';
   info: {
@@ -474,6 +480,17 @@ export interface ApiItemOrdenItemOrden extends Struct.CollectionTypeSchema {
     draftAndPublish: true;
   };
   attributes: {
+    activo: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<true>;
+    codigo: Schema.Attribute.String &
+      Schema.Attribute.Required &
+      Schema.Attribute.Unique;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    descuento_porcentaje: Schema.Attribute.Integer;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<'oneToMany', 'api::cupon.cupon'> &
+      Schema.Attribute.Private;
     cantidad: Schema.Attribute.Integer;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -1134,6 +1151,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::carrito.carrito': ApiCarritoCarrito;
+      'api::cupon.cupon': ApiCuponCupon;
       'api::item-orden.item-orden': ApiItemOrdenItemOrden;
       'api::orden.orden': ApiOrdenOrden;
       'api::producto.producto': ApiProductoProducto;
