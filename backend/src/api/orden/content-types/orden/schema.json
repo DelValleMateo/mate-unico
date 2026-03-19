@@ -1,0 +1,51 @@
+{
+  "kind": "collectionType",
+  "collectionName": "ordens",
+  "info": {
+    "singularName": "orden",
+    "pluralName": "ordens",
+    "displayName": "Orden"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "fecha": {
+      "type": "datetime"
+    },
+    "total": {
+      "type": "decimal"
+    },
+    "estado": {
+      "type": "enumeration",
+      "default": "pendiente",
+      "enum": [
+        "pendiente",
+        "pagado",
+        "cancelado"
+      ]
+    },
+    "payment_id": {
+      "type": "string"
+    },
+    "costo_envio": {
+      "type": "decimal"
+    },
+    "usuario": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "ordens"
+    },
+    "item_ordens": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::item-orden.item-orden",
+      "mappedBy": "orden"
+    },
+    "direccion_envio_cp": {
+      "type": "string"
+    }
+  }
+}

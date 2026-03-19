@@ -16,7 +16,7 @@ export default function CompraFallida() {
             if (window.location.hostname.includes("ngrok")) {
                 console.log("🔄 Detectado Ngrok en Fallo, volviendo a Localhost...");
                 const currentParams = window.location.search;
-                const targetUrl = `http://localhost:3001/compra-fallida${currentParams}`;
+                const targetUrl = `http://localhost:3000/compra-fallida${currentParams}`;
                 window.location.href = targetUrl;
             }
         }

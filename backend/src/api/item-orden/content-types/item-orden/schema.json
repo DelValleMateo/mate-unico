@@ -1,0 +1,35 @@
+{
+  "kind": "collectionType",
+  "collectionName": "item_ordens",
+  "info": {
+    "singularName": "item-orden",
+    "pluralName": "item-ordens",
+    "displayName": "ItemOrden"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "cantidad": {
+      "type": "integer"
+    },
+    "precio_unitario": {
+      "type": "decimal"
+    },
+    "d_grabado": {
+      "type": "string"
+    },
+    "orden": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::orden.orden",
+      "inversedBy": "item_ordens"
+    },
+    "producto": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::producto.producto"
+    }
+  }
+}

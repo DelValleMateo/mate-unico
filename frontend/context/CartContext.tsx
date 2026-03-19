@@ -3,24 +3,32 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 // Definimos la estructura del producto en el carrito
-interface CartItem {
+export interface CartItem {
     id: number;
-    documentId?: string; // Importante para la validación de stock
+    documentId?: string;
+    cartItemId?: string; // NUEVO: Identificador único (id + color + grabado)
     name: string;
     price: number;
     img: string;
     quantity: number;
     color: string;
+    grabado?: string;
 }
 
 interface CartContextType {
     cart: CartItem[];
     addToCart: (item: CartItem) => void;
-    removeFromCart: (id: number) => void;
-    clearCart: () => void; // <--- 1. AGREGAMOS ESTO A LA INTERFAZ
+    removeFromCart: (cartItemId: string) => void; // Ahora pide el ID único (string)
+    clearCart: () => void;
+    updateQuantity: (cartItemId: string, action: 'increase' | 'decrease') => void; // Ahora pide el ID único
     totalItems: number;
-    isCartOpen: boolean;      // Agregamos esto para que Jesús maneje el Sidebar
-    toggleCart: () => void;   // Agregamos esto para que Jesús maneje el Sidebar
+    isCartOpen: boolean;
+    toggleCart: () => void;
+    subtotal: number;
+    shippingCost: number;
+    total: number;
+    hasFreeShipping: boolean;
+    amountToFreeShipping: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -29,56 +37,74 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
 
-    // Cargar carrito desde localStorage al iniciar
+    const UMBRAL_ENVIO_GRATIS = 50000;
+    const COSTO_ENVIO_FIJO = 5000;
+
+    // Cargar carrito desde localStorage
     useEffect(() => {
         const savedCart = localStorage.getItem('mateunico_cart');
         if (savedCart) {
-            setCart(JSON.parse(savedCart));
+            const parsed = JSON.parse(savedCart);
+            // Migración de seguridad por si tenías items viejos guardados
+            const migratedCart = parsed.map((item: CartItem) => ({
+                ...item,
+                cartItemId: item.cartItemId || `${item.id}-${item.color}-${item.grabado || ''}`
+            }));
+            setCart(migratedCart);
         }
     }, []);
 
-    // Guardar en localStorage cada vez que cambia
     useEffect(() => {
         localStorage.setItem('mateunico_cart', JSON.stringify(cart));
     }, [cart]);
 
     const addToCart = (newItem: CartItem) => {
+        // Creamos la "patente" única para este producto exacto
+        const uniqueCartId = `${newItem.id}-${newItem.color}-${newItem.grabado || ''}`;
+
         setCart((prevCart) => {
-            const existingItem = prevCart.find((item) => item.id === newItem.id);
+            const existingItem = prevCart.find((item) => item.cartItemId === uniqueCartId);
+
             if (existingItem) {
                 return prevCart.map((item) =>
-                    item.id === newItem.id
-                        ? { ...item, quantity: item.quantity + newItem.quantity }
+                    item.cartItemId === uniqueCartId
+                        ? { ...item, quantity: Number(item.quantity) + Number(newItem.quantity) }
                         : item
                 );
             }
-            return [...prevCart, newItem];
+            return [...prevCart, { ...newItem, cartItemId: uniqueCartId, quantity: Number(newItem.quantity) }];
         });
-        setIsCartOpen(true); // Abrimos el carrito al agregar
     };
 
-    const removeFromCart = (id: number) => {
-        setCart((prevCart) => prevCart.filter((item) => item.id !== id));
+    const removeFromCart = (cartItemId: string) => {
+        setCart((prevCart) => prevCart.filter((item) => item.cartItemId !== cartItemId));
     };
 
-    // 2. CREAMOS LA FUNCIÓN PARA VACIAR
-    const clearCart = () => {
-        setCart([]); // Simplemente pone el array vacío
+    const updateQuantity = (cartItemId: string, action: 'increase' | 'decrease') => {
+        setCart((prevCart) => prevCart.map(item => {
+            if (item.cartItemId === cartItemId) {
+                if (action === 'increase') return { ...item, quantity: Number(item.quantity) + 1 };
+                if (action === 'decrease' && item.quantity > 1) return { ...item, quantity: Number(item.quantity) - 1 };
+            }
+            return item;
+        }));
     };
 
+    const clearCart = () => setCart([]);
     const toggleCart = () => setIsCartOpen(!isCartOpen);
 
-    const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+    const totalItems = cart.reduce((acc, item) => acc + Number(item.quantity), 0);
+    const subtotal = cart.reduce((acc, item) => acc + (Number(item.price) * Number(item.quantity)), 0);
+    const hasFreeShipping = subtotal >= UMBRAL_ENVIO_GRATIS;
+    const amountToFreeShipping = hasFreeShipping ? 0 : UMBRAL_ENVIO_GRATIS - subtotal;
+    const shippingCost = (subtotal === 0 || hasFreeShipping) ? 0 : COSTO_ENVIO_FIJO;
+    const total = subtotal + shippingCost;
 
     return (
         <CartContext.Provider value={{
-            cart,
-            addToCart,
-            removeFromCart,
-            clearCart, // <--- 3. LA EXPORTAMOS AQUÍ
-            totalItems,
-            isCartOpen,
-            toggleCart
+            cart, addToCart, removeFromCart, clearCart, updateQuantity,
+            totalItems, isCartOpen, toggleCart,
+            subtotal, shippingCost, total, hasFreeShipping, amountToFreeShipping
         }}>
             {children}
         </CartContext.Provider>
@@ -87,8 +113,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
 export function useCart() {
     const context = useContext(CartContext);
-    if (context === undefined) {
-        throw new Error('useCart must be used within a CartProvider');
-    }
+    if (context === undefined) throw new Error('useCart must be used within a CartProvider');
     return context;
 }

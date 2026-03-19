@@ -72,24 +72,24 @@ export default function HomePage() {
       </section>
 
       {/* --- SECCIONES DE PRODUCTOS --- */}
-      <SectionGrid 
-          title="Destacados" 
-          subtitle="Los productos mas destacados actualmente en nuestro sitio" 
-          products={destacados} 
+      <SectionGrid
+        title="Destacados"
+        subtitle="Los productos mas destacados actualmente en nuestro sitio"
+        products={destacados}
       />
-      
+
       {/* SECCIÓN NOVEDADES: AHORA ENVÍA EL FILTRO PARA ORDENAR POR FECHA MÁS RECIENTE */}
-<SectionGrid 
-    title="Novedades" 
-    subtitle="Los Productos mas recientes que lanzamos a la venta" 
-    products={novedades} 
-    linkHref="/catalogo?ordenar=fecha_desc" // RUTA CON EL FILTRO
-/>
-      
-      <SectionGrid 
-          title="Mas Variedad" 
-          subtitle="Aca vas a encontrar todo tipo de producto" 
-          products={variedad} 
+      <SectionGrid
+        title="Novedades"
+        subtitle="Los Productos mas recientes que lanzamos a la venta"
+        products={novedades}
+        linkHref="/catalogo?ordenar=fecha_desc" // RUTA CON EL FILTRO
+      />
+
+      <SectionGrid
+        title="Mas Variedad"
+        subtitle="Aca vas a encontrar todo tipo de producto"
+        products={variedad}
       />
     </>
   );
@@ -107,7 +107,7 @@ function SectionGrid({ title, subtitle, products, linkHref = '/catalogo' }: { ti
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
         {products.map((product) => (
-          <Link href="/producto/mate-imperial" key={product.id} className="group flex flex-col items-center">
+          <Link href="/producto/imperial-negro" key={product.id} className="group flex flex-col items-center">
             <div className="relative w-full aspect-square bg-[#1a1a1a]/60 rounded-xl overflow-hidden border border-white/5 group-hover:border-white/20 transition-all duration-300">
               <Image src={product.img} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
             </div>
@@ -116,7 +116,7 @@ function SectionGrid({ title, subtitle, products, linkHref = '/catalogo' }: { ti
         ))}
       </div>
 
-      <Link 
+      <Link
         href={linkHref} // Usa la URL dinámica con el filtro
         className="inline-block px-8 py-2 border border-white/30 text-white text-sm uppercase tracking-widest hover:bg-white hover:text-black transition-all rounded-sm"
       >
