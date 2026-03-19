@@ -7,7 +7,7 @@ export async function POST(request: Request) {
         // --- 1. CONFIGURACIÓN DE REGLAS ---
         const UMBRAL_ENVIO_GRATIS = 50000;
         const COSTO_ENVIO_FIJO = 5000;
-        const PRECIO_POR_LETRA_GRABADO = 500; // 👈 Nuestra nueva regla en el backend
+        const PRECIO_POR_LETRA_GRABADO = 500;
 
         const productosValidados = [];
         let totalProductos = 0;
@@ -29,19 +29,18 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: `Sin stock suficiente para: ${item.name}` }, { status: 409 });
             }
 
-            // 👇 CÁLCULO SEGURO DEL PRECIO DESDE EL BACKEND 👇
+            // Cálculo seguro del precio desde el backend
             const precioBaseReal = Number(productoDB.precio);
             const textoGrabado = item.grabado || "";
             const costoGrabado = textoGrabado.length * PRECIO_POR_LETRA_GRABADO;
 
-            // Este es el precio por unidad que le vamos a mandar a Mercado Pago
             const precioFinalValido = precioBaseReal + costoGrabado;
             const nombreReal = productoDB.nombreProducto || item.name;
 
             productosValidados.push({
                 strapiId: productoDB.documentId,
                 nombre: nombreReal,
-                precio: precioFinalValido, // Usamos el precio con el grabado sumado
+                precio: precioFinalValido,
                 cantidad: item.quantity,
                 grabado: textoGrabado,
                 stockActual: productoDB.stock
@@ -52,9 +51,7 @@ export async function POST(request: Request) {
 
         // --- 3. CÁLCULO DE ENVÍO ---
         let costoEnvioFinal = 0;
-        if (totalProductos >= UMBRAL_ENVIO_GRATIS) {
-            costoEnvioFinal = 0;
-        } else {
+        if (totalProductos < UMBRAL_ENVIO_GRATIS) {
             costoEnvioFinal = COSTO_ENVIO_FIJO;
         }
 
@@ -98,7 +95,7 @@ export async function POST(request: Request) {
                         orden: ordenId,
                         producto: prod.strapiId,
                         cantidad: prod.cantidad,
-                        precio_unitario: prod.precio, // Se guarda el precio con grabado incluido
+                        precio_unitario: prod.precio,
                         d_grabado: prod.grabado
                     }
                 })
@@ -118,7 +115,7 @@ export async function POST(request: Request) {
         const itemsMP = productosValidados.map(prod => ({
             id: prod.strapiId,
             title: prod.nombre,
-            description: prod.grabado ? `Grabado: "${prod.grabado}"` : "Sin grabado", // Le ponemos comillas al grabado para que resalte
+            description: prod.grabado ? `Grabado: "${prod.grabado}"` : "Sin grabado",
             unit_price: prod.precio,
             quantity: prod.cantidad,
             currency_id: "ARS",
@@ -134,15 +131,7 @@ export async function POST(request: Request) {
                 currency_id: "ARS"
             });
         }
-        const preferenceData = {
-            items: itemsMP,
-            back_urls: {
-                success: "https://multisacculate-bari-submicroscopically.ngrok-free.dev/compra-exitosa",
-                failure: "https://multisacculate-bari-submicroscopically.ngrok-free.dev/compra-fallida",
-                pending: "https://multisacculate-bari-submicroscopically.ngrok-free.dev/compra-pendiente"
-            },
-            auto_return: "approved",
-        };
+
         const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
             method: "POST",
             headers: {
@@ -158,6 +147,8 @@ export async function POST(request: Request) {
                     pending: "https://unpercolated-intramarginal-tony.ngrok-free.dev/compra-pendiente"
                 },
                 auto_return: "approved",
+                // 👇 REEMPLAZAR ESTO CON TU URL DE NGROK DE HOY 👇
+                notification_url: "https://unpercolated-intramarginal-tony.ngrok-free.dev/api/webhook",
             }),
         });
 
