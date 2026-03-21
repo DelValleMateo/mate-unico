@@ -111,6 +111,17 @@ export default function RegisterPage() {
         </button>
       </form>
 
+      <button
+        type="button"
+        onClick={() => {
+          window.location.href = 'http://localhost:1337/api/connect/google';
+        }}
+        className="w-full flex items-center justify-center space-x-2 border border-gray-300 text-gray-800 py-3 mt-3 rounded-md font-semibold hover:bg-gray-50 transition duration-200"
+      >
+        <span className="text-lg font-google-sans">G</span>
+        <span>Continuar con Google</span>
+      </button>
+
       <div className="mt-4 text-center text-xs text-gray-600">
         Ya tienes una cuenta?
         <Link href="/login" className="text-black font-semibold hover:underline ml-1">

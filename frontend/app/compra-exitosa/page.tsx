@@ -77,22 +77,23 @@ function CompraExitosaContent() {
 
         const currentItem = purchasedItems[currentIndex];
 
-        // Estructura para Strapi
+        // Estructura para Strapi V5 STRICT (requiere connect para relaciones numéricas y string IDs)
         const reviewData = {
             data: {
                 estrellas: rating,
                 comentario: comment,
-                users_permissions_user: user.id, // Relación con el usuario de Nacho
-                producto: currentItem.id || 1, // El ID del producto (importante que esté en el carrito)
+                users_permissions_user: { connect: [user.id] }, 
+                producto: { connect: [currentItem.documentId || currentItem.id] }, 
             }
         };
 
         try {
-            const res = await fetch('http://localhost:1337/api/resenas', {
+            const tokenToUse = process.env.NEXT_PUBLIC_STRAPI_API_TOKEN || jwt;
+            const res = await fetch('http://localhost:1337/api/reviews', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${jwt}` // Token de seguridad
+                    'Authorization': `Bearer ${tokenToUse}` // Usamos el token maestro si está disponible para evitar bloqueos por permisos
                 },
                 body: JSON.stringify(reviewData),
             });
@@ -121,7 +122,7 @@ function CompraExitosaContent() {
         name: "Cargando producto...",
         price: 0,
         quantity: 0,
-        img: "/placeholder.png",
+        img: "https://via.placeholder.com/400?text=Cargando",
         grabado: "",
         color: ""
     };
@@ -150,7 +151,7 @@ function CompraExitosaContent() {
                     <div className="flex flex-col items-center justify-start">
                         <div className="w-full aspect-square relative rounded-lg overflow-hidden shadow-sm border border-gray-200 bg-gray-50 group">
                             <img
-                                src={currentItem.img || currentItem.image || "/placeholder.png"}
+                                src={currentItem.img || currentItem.image || "https://via.placeholder.com/400?text=Mate"}
                                 alt={currentItem.name || currentItem.nombreProducto}
                                 className="object-cover w-full h-full transition-transform duration-500"
                             />

@@ -14,23 +14,44 @@ interface ProductProps {
     nombreProducto: string;
     descripcion: string;
     precio: number;
+    precioAnterior?: number;
     stock?: number;
     imagenes: any[];
+    tp_producto?: string;
+    tiene_Grabado?: boolean;
 }
 
-export default function ProductClient({ product }: { product: ProductProps }) {
+interface ProductClientProps {
+    product: ProductProps;
+    averageRating?: number | string;
+    reviewCount?: number;
+}
+
+export default function ProductClient({ product, averageRating, reviewCount }: ProductClientProps) {
     const { addToCart } = useCart();
     const [quantity, setQuantity] = useState(1);
-    const [selectedColor, setSelectedColor] = useState('black');
     const [grabadoText, setGrabadoText] = useState('');
     const [isAdded, setIsAdded] = useState(false);
 
-    const { nombreProducto, precio, descripcion, stock = 10, imagenes } = product;
+    const { nombreProducto, precio, precioAnterior, descripcion, stock = 10, imagenes, tp_producto, tiene_Grabado } = product;
+
+    const tpProductoReal = tp_producto || (product as any)?.attributes?.tp_producto;
+    const tieneGrabadoReal = tiene_Grabado !== undefined ? tiene_Grabado : (product as any)?.attributes?.tiene_Grabado;
+
+    // Evaluamos si el mate permite grabado.
+    // Si la BD dice tiene_Grabado = false, o si es M_VIDRIO, entonces no se puede.
+    const permiteGrabado = tieneGrabadoReal !== false && tpProductoReal !== 'M_VIDRIO';
+
+    // Calculamos si hay descuento y el porcentaje
+    const numPrecio = Number(precio);
+    const numPrecioAnterior = Number(precioAnterior || 0);
+    const hayDescuento = numPrecioAnterior > numPrecio;
+    const porcentajeDescuento = hayDescuento ? Math.round(((numPrecioAnterior - numPrecio) / numPrecioAnterior) * 100) : 0;
 
     // Reseteamos el botón si el usuario cambia algo
     useEffect(() => {
         setIsAdded(false);
-    }, [quantity, selectedColor, grabadoText]);
+    }, [quantity, grabadoText]);
 
     const getImageUrl = (index: number) => {
         if (!imagenes || !imagenes[index]) return '/placeholder.png';
@@ -64,7 +85,7 @@ export default function ProductClient({ product }: { product: ProductProps }) {
             price: precioUnitarioFinal, // Mandamos el precio con el grabado incluido
             img: mainImage,
             quantity: quantity,
-            color: selectedColor,
+            color: "Estándar",
             grabado: grabadoText
         });
 
@@ -95,7 +116,17 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                     <div className="flex flex-col gap-4">
                         <div className="mb-1">
                             <h2 className="text-4xl font-bold text-white mb-1">{nombreProducto}</h2>
-                            <p className="text-2xl font-light text-gray-300">${formatPrice(precioUnitarioFinal)}</p>
+                            {hayDescuento ? (
+                                <div className="flex items-center gap-4 mt-2">
+                                    <span className="text-xl font-light text-gray-500 line-through">${formatPrice(numPrecioAnterior + costoGrabado)}</span>
+                                    <span className="text-3xl font-bold text-red-500">${formatPrice(precioUnitarioFinal)}</span>
+                                    <span className="bg-red-600 text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-sm shadow-lg animate-pulse">
+                                        -{porcentajeDescuento}% OFF
+                                    </span>
+                                </div>
+                            ) : (
+                                <p className="text-2xl font-light text-gray-300 mt-2">${formatPrice(precioUnitarioFinal)}</p>
+                            )}
                         </div>
                         <div className="space-y-3">
                             <p className="text-gray-400 leading-relaxed text-sm md:text-base">{descripcion}</p>
@@ -103,29 +134,40 @@ export default function ProductClient({ product }: { product: ProductProps }) {
                         </div>
 
                         <div className="space-y-4 pt-1">
-                            <div>
-                                <label className="text-sm text-gray-500 mb-2 block">Color</label>
-                                <div className="flex gap-3">
-                                    <button onClick={() => setSelectedColor('black')} className={`w-10 h-10 bg-black border ${selectedColor === 'black' ? 'border-white' : 'border-gray-600'} rounded-md`} />
-                                    <button onClick={() => setSelectedColor('brown')} className={`w-10 h-10 bg-[#5D2E2E] border ${selectedColor === 'brown' ? 'border-white' : 'border-gray-600'} rounded-md`} />
+                            {/* RESEÑAS / OPINIONES */}
+                            {reviewCount !== undefined && (
+                                <div className="py-2 inline-flex items-center">
+                                    <span className="text-amber-500 font-bold text-[10px] uppercase tracking-widest bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20">
+                                        ⭐ {reviewCount > 0 ? averageRating : '0.0'} ({reviewCount} opiniones)
+                                    </span>
                                 </div>
-                            </div>
+                            )}
 
                             {/* GRABADO */}
-                            <div>
-                                <div className="flex justify-between items-end mb-2">
-                                    <label className="text-sm text-gray-500 block">
-                                        Grabado <span className="text-xs text-amber-500/80 ml-2">(+$500 x letra)</span>
-                                    </label>
-                                    <span className="text-xs text-gray-600">{grabadoText.length}/10</span>
-                                </div>
-                                <input
-                                    type="text"
-                                    value={grabadoText}
-                                    onChange={(e) => e.target.value.length <= 10 && setGrabadoText(e.target.value)}
-                                    placeholder="(Max 10)"
-                                    className="w-full bg-transparent border border-gray-600 p-3 text-white focus:outline-none focus:border-white rounded-md h-12 transition-colors"
-                                />
+                            <div className="mt-3">
+                                {permiteGrabado ? (
+                                    <>
+                                        <div className="flex justify-between items-end mb-2">
+                                            <label className="text-sm text-gray-500 block">Grabado Personalizado</label>
+                                            <span className="text-[10px] font-mono text-gray-600">{grabadoText.length}/10 max.</span>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={grabadoText}
+                                            onChange={(e) => e.target.value.length <= 10 && setGrabadoText(e.target.value)}
+                                            placeholder="Ej: JM (Opcional)"
+                                            className="w-full bg-transparent border border-gray-700 px-4 py-3 text-white text-sm focus:outline-none focus:border-gray-500 rounded-md transition-all placeholder-gray-700"
+                                        />
+                                        <p className="text-[10px] text-gray-500 mt-2 font-light tracking-wide">
+                                            Añadí tu toque final. Costo extra: <span className="text-gray-400 font-medium">$500 por letra</span>.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <div className="bg-white/5 border border-white/10 rounded-md p-4 flex flex-col items-center justify-center text-center mt-4">
+                                        <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Grabado No Disponible</p>
+                                        <p className="text-[10px] text-gray-500 mt-1">El material de este producto no permite grabado láser.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
