@@ -20,6 +20,9 @@
     "precio": {
       "type": "decimal"
     },
+    "precioAnterior": {
+      "type": "decimal"
+    },
     "tp_producto": {
       "type": "enumeration",
       "enum": [

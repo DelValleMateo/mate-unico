@@ -46,6 +46,9 @@
     },
     "direccion_envio_cp": {
       "type": "string"
+    },
+    "cupon": {
+      "type": "string"
     }
   }
 }

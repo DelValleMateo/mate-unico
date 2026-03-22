@@ -5,32 +5,60 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-// --- DATOS (Puedes moverlos a un archivo de datos después) ---
+// --- DATOS DEL CARROUSEL ---
 const slides = [
   { id: 1, image: '/banner-home.png', title: 'No es solo un mate', subtitle: 'es tu Mate Unico' },
   { id: 2, image: '/home-banner.png', title: 'Tradición y Diseño', subtitle: 'Hecho en Argentina' }
 ];
 
-const destacados = [
-  { id: 1, name: 'Imperial', img: '/imperialnegro3.png' },
-  { id: 2, name: 'Tradicional', img: '/mate-tradicional.png' },
-  { id: 3, name: 'Imperial Madera', img: '/mate-imperialmadera.png' },
-];
-
-const novedades = [
-  { id: 1, name: 'Imperial + Bombilla', img: '/mate-imperial+bombilla.png' },
-  { id: 2, name: 'Imperial Rojo', img: '/mate-imperialrojo.png' },
-  { id: 3, name: 'Metalico', img: '/mate-metalicoblanco.png' },
-];
-
-const variedad = [
-  { id: 1, name: 'Imperial de cuero', img: '/mate-imperial1.png' },
-  { id: 2, name: 'Imperial con bombilla', img: '/mate-imperial+bombilla2.png' },
-  { id: 3, name: 'Tradicional+Bombilla', img: '/mate-tradicional+bombilla.png' },
-];
-
 export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [productos, setProductos] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:1337/api/productos?populate=*')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) {
+          const formatted = data.data.map((p: any) => {
+            const attrs = p.attributes || p;
+            let mainImage = '/placeholder.png';
+            if (attrs.imagenes && attrs.imagenes.length > 0) {
+              const imgObj = attrs.imagenes[0];
+              const url = imgObj.url || imgObj.attributes?.url;
+              if (url) mainImage = url.startsWith('http') ? url : `http://localhost:1337${url}`;
+            }
+
+            const numPrecio = Number(attrs.precio);
+            const numPrecioAnterior = Number(attrs.precioAnterior || 0);
+            const hayDescuento = numPrecioAnterior > numPrecio;
+            const porcentajeDescuento = hayDescuento ? Math.round(((numPrecioAnterior - numPrecio) / numPrecioAnterior) * 100) : 0;
+
+            return {
+              id: p.id,
+              slug: attrs.slug,
+              name: attrs.nombreProducto,
+              img: mainImage,
+              discount: hayDescuento,
+              porcentaje: porcentajeDescuento,
+              stock: attrs.stock || 0,
+              createdAt: attrs.createdAt
+            };
+          });
+          setProductos(formatted);
+        }
+      })
+      .catch(err => console.error("Error cargando productos para la home", err));
+  }, []);
+
+  // Compute Destacados: Top 3 (Strapi no trackea ventas automáticas, usamos 3 aleatorios/primeros)
+  const destacadosRaw = productos.slice(0, 3);
+  
+  // Compute Novedades: Top 3 sorted by createdAt desc
+  const novedadesRaw = [...productos].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3);
+
+  // Compute Promociones: Top 3 con descuento
+  const promocionesRaw = productos.filter(p => p.discount).slice(0, 3);
 
   useEffect(() => {
     const slideInterval = setInterval(() => nextSlide(), 5000);
@@ -71,25 +99,26 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* --- SECCIONES DE PRODUCTOS --- */}
+      {/* --- SECCIONES DE PRODUCTOS DINAMICAS --- */}
       <SectionGrid
         title="Destacados"
         subtitle="Los productos mas destacados actualmente en nuestro sitio"
-        products={destacados}
+        products={destacadosRaw}
       />
 
       {/* SECCIÓN NOVEDADES: AHORA ENVÍA EL FILTRO PARA ORDENAR POR FECHA MÁS RECIENTE */}
       <SectionGrid
         title="Novedades"
         subtitle="Los Productos mas recientes que lanzamos a la venta"
-        products={novedades}
+        products={novedadesRaw}
         linkHref="/catalogo?ordenar=fecha_desc" // RUTA CON EL FILTRO
       />
 
       <SectionGrid
-        title="Mas Variedad"
-        subtitle="Aca vas a encontrar todo tipo de producto"
-        products={variedad}
+        title="Promociones"
+        subtitle="Nuestros mates seleccionados con descuentos exclusivos"
+        products={promocionesRaw}
+        linkHref="/catalogo?ordenar=promociones" // Actualizado para machear el select del catalogo
       />
     </>
   );
@@ -98,6 +127,8 @@ export default function HomePage() {
 // Componente auxiliar local para esta página
 // MODIFICADO: Ahora acepta 'linkHref' como propiedad
 function SectionGrid({ title, subtitle, products, linkHref = '/catalogo' }: { title: string, subtitle: string, products: any[], linkHref?: string }) {
+  if (products.length === 0) return null; // No mostrar sección si no cargó nada
+
   return (
     <section className="max-w-7xl mx-auto px-8 py-16 text-center">
       <div className="mb-12 space-y-2">
@@ -107,9 +138,18 @@ function SectionGrid({ title, subtitle, products, linkHref = '/catalogo' }: { ti
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
         {products.map((product) => (
-          <Link href="/producto/imperial-negro" key={product.id} className="group flex flex-col items-center">
+          <Link href={`/producto/${product.slug}`} key={product.id} className="group flex flex-col items-center">
             <div className="relative w-full aspect-square bg-[#1a1a1a]/60 rounded-xl overflow-hidden border border-white/5 group-hover:border-white/20 transition-all duration-300">
               <Image src={product.img} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
+              {product.stock <= 0 ? (
+                <div className="absolute top-3 right-3 bg-gray-600 text-white text-[10px] font-bold uppercase tracking-widest py-1 px-3 rounded-sm shadow-lg">
+                  SIN STOCK
+                </div>
+              ) : product.discount ? (
+                <div className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest py-1 px-3 rounded-sm shadow-lg animate-pulse">
+                  -{product.porcentaje}% OFF
+                </div>
+              ) : null}
             </div>
             <h4 className="mt-4 text-white font-bold text-lg tracking-wide group-hover:text-gray-300 transition-colors">{product.name}</h4>
           </Link>

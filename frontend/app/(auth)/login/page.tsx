@@ -6,9 +6,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogIn } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,9 +44,8 @@ export default function LoginPage() {
         throw new Error(data.error?.message || 'Error al iniciar sesión');
       }
 
-      // 🔐 Guardamos JWT y usuario
-      localStorage.setItem('jwt', data.jwt);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // 🔐 Guardamos JWT y usuario a nivel global en React
+      login(data.user, data.jwt);
 
       // 🧪 Logs para verificar
       console.log('JWT guardado:', data.jwt);
@@ -118,6 +119,9 @@ export default function LoginPage() {
 
       <button
         type="button"
+        onClick={() => {
+          window.location.href = 'http://localhost:1337/api/connect/google';
+        }}
         className="w-full flex items-center justify-center space-x-2 border border-gray-300 text-gray-800 py-3 mt-3 rounded-md font-semibold hover:bg-gray-50 transition duration-200"
       >
         <span className="text-lg font-google-sans">G</span>

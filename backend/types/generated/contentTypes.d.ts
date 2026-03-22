@@ -469,12 +469,6 @@ export interface ApiCuponCupon extends Struct.CollectionTypeSchema {
     displayName: 'Cupon';
     pluralName: 'cupons';
     singularName: 'cupon';
-export interface ApiItemOrdenItemOrden extends Struct.CollectionTypeSchema {
-  collectionName: 'item_ordens';
-  info: {
-    displayName: 'ItemOrden';
-    pluralName: 'item-ordens';
-    singularName: 'item-orden';
   };
   options: {
     draftAndPublish: true;
@@ -491,6 +485,24 @@ export interface ApiItemOrdenItemOrden extends Struct.CollectionTypeSchema {
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::cupon.cupon'> &
       Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiItemOrdenItemOrden extends Struct.CollectionTypeSchema {
+  collectionName: 'item_ordens';
+  info: {
+    displayName: 'ItemOrden';
+    pluralName: 'item-ordens';
+    singularName: 'item-orden';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
     cantidad: Schema.Attribute.Integer;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -527,6 +539,7 @@ export interface ApiOrdenOrden extends Struct.CollectionTypeSchema {
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    cupon: Schema.Attribute.String;
     direccion_envio_cp: Schema.Attribute.String;
     estado: Schema.Attribute.Enumeration<['pendiente', 'pagado', 'cancelado']> &
       Schema.Attribute.DefaultTo<'pendiente'>;
@@ -578,6 +591,7 @@ export interface ApiProductoProducto extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     nombreProducto: Schema.Attribute.String;
     precio: Schema.Attribute.Decimal;
+    precioAnterior: Schema.Attribute.Decimal;
     publishedAt: Schema.Attribute.DateTime;
     reviews: Schema.Attribute.Relation<'oneToMany', 'api::review.review'>;
     slug: Schema.Attribute.UID<'nombreProducto'>;
@@ -1093,6 +1107,8 @@ export interface PluginUsersPermissionsUser
   attributes: {
     apellido: Schema.Attribute.String;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    ciudad: Schema.Attribute.String;
+    codigo_postal: Schema.Attribute.String;
     confirmationToken: Schema.Attribute.String & Schema.Attribute.Private;
     confirmed: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     createdAt: Schema.Attribute.DateTime;
@@ -1113,12 +1129,14 @@ export interface PluginUsersPermissionsUser
     nombre: Schema.Attribute.String;
     ordenes: Schema.Attribute.Relation<'oneToMany', 'api::orden.orden'>;
     ordens: Schema.Attribute.Relation<'oneToMany', 'api::orden.orden'>;
+    pais: Schema.Attribute.String;
     password: Schema.Attribute.Password &
       Schema.Attribute.Private &
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
     provider: Schema.Attribute.String;
+    provincia: Schema.Attribute.String;
     publishedAt: Schema.Attribute.DateTime;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;
     reviews: Schema.Attribute.Relation<'oneToMany', 'api::review.review'>;

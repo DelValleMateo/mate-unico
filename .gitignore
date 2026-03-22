@@ -6,3 +6,5 @@ dist/
 .tmp/
 public/uploads/
 .cache/
+client_secret_340969289593-fdlbou0jbul4tjleb2jg6pbkukgs3lnn.apps.googleusercontent.com
+client_secret_*.json

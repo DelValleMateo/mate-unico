@@ -1,0 +1,82 @@
+{
+  "data": [
+    {
+      "id": 81,
+      "documentId": "fiksopfqewigrujgm1oajn7z",
+      "fecha": "2026-03-21T18:06:00.529Z",
+      "total": 31500,
+      "estado": "pagado",
+      "costo_envio": 6500,
+      "createdAt": "2026-03-21T18:06:00.553Z",
+      "updatedAt": "2026-03-21T18:06:14.139Z",
+      "publishedAt": "2026-03-21T18:06:14.160Z",
+      "payment_id": null,
+      "direccion_envio_cp": "6300",
+      "usuario": {
+        "id": 2,
+        "documentId": "f2clik76czo1a399d1tl8264",
+        "username": "mateunico359@gmail.com",
+        "email": "mateunico359@gmail.com",
+        "provider": "local",
+        "confirmed": true,
+        "blocked": false,
+        "createdAt": "2026-03-20T17:08:03.211Z",
+        "updatedAt": "2026-03-21T08:33:12.403Z",
+        "publishedAt": "2026-03-20T17:08:03.212Z",
+        "nombre": "Mateo",
+        "apellido": "Del Valle",
+        "dni": null,
+        "telefono": null,
+        "pais": "Argentina",
+        "provincia": "Entre Rios",
+        "ciudad": "Guelaguaychu",
+        "codigo_postal": "2820"
+      },
+      "item_ordens": [
+        {
+          "id": 20,
+          "documentId": "mys20elw4qexblcwgpme2o85",
+          "cantidad": 1,
+          "precio_unitario": 25000,
+          "d_grabado": "",
+          "createdAt": "2026-03-21T18:06:00.603Z",
+          "updatedAt": "2026-03-21T18:06:00.603Z",
+          "publishedAt": "2026-03-21T18:06:00.611Z"
+        }
+      ]
+    },
+    {
+      "id": 78,
+      "documentId": "go8q8lir046vow7bwv4f4cer",
+      "fecha": "2026-03-21T17:35:23.713Z",
+      "total": 41500,
+      "estado": "pagado",
+      "costo_envio": 6500,
+      "createdAt": "2026-03-21T17:35:23.737Z",
+      "updatedAt": "2026-03-21T17:35:36.564Z",
+      "publishedAt": "2026-03-21T17:35:36.574Z",
+      "payment_id": null,
+      "direccion_envio_cp": "5500",
+      "usuario": null,
+      "item_ordens": [
+        {
+          "id": 18,
+          "documentId": "ieakbj851wzfagejmftfotdg",
+          "cantidad": 1,
+          "precio_unitario": 35000,
+          "d_grabado": "",
+          "createdAt": "2026-03-21T17:35:23.791Z",
+          "updatedAt": "2026-03-21T17:35:23.791Z",
+          "publishedAt": "2026-03-21T17:35:23.801Z"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "pagination": {
+      "start": 0,
+      "limit": 2,
+      "total": 31
+    }
+  }
+}

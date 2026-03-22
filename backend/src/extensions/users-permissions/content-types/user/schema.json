@@ -79,6 +79,18 @@
     "telefono": {
       "type": "string"
     },
+    "pais": {
+      "type": "string"
+    },
+    "provincia": {
+      "type": "string"
+    },
+    "ciudad": {
+      "type": "string"
+    },
+    "codigo_postal": {
+      "type": "string"
+    },
     "ordenes": {
       "type": "relation",
       "relation": "oneToMany",
