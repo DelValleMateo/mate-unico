@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext'; 
 
 interface Order {
@@ -295,16 +296,47 @@ const PerfilPage = () => {
                                 const prodRef = itemO.attributes?.producto?.data || itemO.producto?.data || itemO.producto;
                                 if (!prodRef) return null;
                                 const prodData = prodRef.attributes || prodRef;
+
+                                // Extraer URL de imagen (Strapi v4 o v5)
+                                const imagenes = prodData?.imagenes?.data || prodData?.imagenes || [];
+                                const primeraImg = Array.isArray(imagenes) ? imagenes[0] : null;
+                                const imgUrl = primeraImg?.attributes?.formats?.thumbnail?.url
+                                    || primeraImg?.attributes?.url
+                                    || primeraImg?.formats?.thumbnail?.url
+                                    || primeraImg?.url
+                                    || null;
+                                const fullImgUrl = imgUrl
+                                    ? (imgUrl.startsWith('http') ? imgUrl : `http://localhost:1337${imgUrl}`)
+                                    : null;
                                 
                                 return (
-                                    <div key={itemO.id} className="flex justify-between items-center border border-gray-800 bg-black/50 p-3 rounded-lg">
-                                        <div>
-                                            <p className="text-white text-xs font-bold uppercase">{prodData?.nombreProducto || 'MATE'}</p>
-                                            <p className="text-gray-500 text-[10px] mt-1">{itemO.attributes?.cantidad || itemO.cantidad}x Grabado: {itemO.attributes?.d_grabado || itemO.d_grabado || 'No'}</p>
+                                    <div key={itemO.id} className="flex items-center gap-3 border border-gray-800 bg-black/50 p-3 rounded-lg">
+                                        {/* Thumbnail del producto */}
+                                        <div className="flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-900 border border-gray-800">
+                                            {fullImgUrl ? (
+                                                <Image
+                                                    src={fullImgUrl}
+                                                    alt={prodData?.nombreProducto || 'Mate'}
+                                                    width={56}
+                                                    height={56}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-700 text-xl">
+                                                    🧉
+                                                </div>
+                                            )}
                                         </div>
+
+                                        {/* Info del producto */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-white text-xs font-bold uppercase truncate">{prodData?.nombreProducto || 'MATE'}</p>
+                                            <p className="text-gray-500 text-[10px] mt-1">{itemO.attributes?.cantidad || itemO.cantidad}x · Grabado: {itemO.attributes?.d_grabado || itemO.d_grabado || 'No'}</p>
+                                        </div>
+
                                         <button 
                                             onClick={() => setReviewingProduct({id: prodRef.documentId, name: prodData?.nombreProducto})}
-                                            className="bg-white text-black px-3 py-1.5 rounded text-[10px] font-bold uppercase hover:bg-gray-200 transition-colors"
+                                            className="flex-shrink-0 bg-white text-black px-3 py-1.5 rounded text-[10px] font-bold uppercase hover:bg-gray-200 transition-colors"
                                         >
                                             RESEÑAR
                                         </button>
