@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     // El usuario es válido. Usamos el Token Maestro para saltarnos los conflictos de roles de Strapi
     const tokenMaestro = process.env.NEXT_PUBLIC_STRAPI_API_TOKEN;
     
-    const url = `http://127.0.0.1:1337/api/ordens?filters[usuario][id][$eq]=${userId}&populate[item_ordens][populate]=producto&sort=id:desc`;
+    const url = `http://127.0.0.1:1337/api/ordens?filters[usuario][id][$eq]=${userId}&populate[item_ordens][populate][producto][populate]=imagenes&sort=id:desc`;
     try {
         const ordenRes = await fetch(url, {
             headers: { Authorization: `Bearer ${tokenMaestro}` },

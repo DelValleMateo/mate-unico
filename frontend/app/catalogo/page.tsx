@@ -69,8 +69,10 @@ export default function CatalogoPage() {
         productosFiltrados.sort((a, b) => Number(a.precio) - Number(b.precio));
     } else if (ordenar === "precio_desc") {
         productosFiltrados.sort((a, b) => Number(b.precio) - Number(a.precio));
+    } else if (ordenar === "destacados") {
+        // Asumiendo que el stock inicial es parejo, menor stock = más ventas
+        productosFiltrados.sort((a, b) => Number(a.stock) - Number(b.stock));
     }
-    // "destacados" o vacio ("Todos") lo dejan en su orden original
 
     return (
         <div className="min-h-screen text-gray-200 p-8 md:px-16">

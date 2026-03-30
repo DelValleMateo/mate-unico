@@ -39,8 +39,8 @@ export default function ProductClient({ product, averageRating, reviewCount }: P
     const tieneGrabadoReal = tiene_Grabado !== undefined ? tiene_Grabado : (product as any)?.attributes?.tiene_Grabado;
 
     // Evaluamos si el mate permite grabado.
-    // Si la BD dice tiene_Grabado = false, o si es M_VIDRIO, entonces no se puede.
-    const permiteGrabado = tieneGrabadoReal !== false && tpProductoReal !== 'M_VIDRIO';
+    // SOLO los de vidrio (M_VIDRIO) no permiten grabado. Los de madera siempre sí.
+    const permiteGrabado = tpProductoReal !== 'M_VIDRIO';
 
     // Calculamos si hay descuento y el porcentaje
     const numPrecio = Number(precio);
