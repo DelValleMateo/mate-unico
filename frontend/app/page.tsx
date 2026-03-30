@@ -51,8 +51,8 @@ export default function HomePage() {
       .catch(err => console.error("Error cargando productos para la home", err));
   }, []);
 
-  // Compute Destacados: Top 3 (Strapi no trackea ventas automáticas, usamos 3 aleatorios/primeros)
-  const destacadosRaw = productos.slice(0, 3);
+  // Compute Destacados: Top 3 (Los más vendidos calculados por menor cantidad de stock disponible)
+  const destacadosRaw = [...productos].sort((a,b) => Number(a.stock) - Number(b.stock)).slice(0, 3);
   
   // Compute Novedades: Top 3 sorted by createdAt desc
   const novedadesRaw = [...productos].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 3);

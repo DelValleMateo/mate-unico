@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 // Definimos la estructura del producto en el carrito
 export interface CartItem {
@@ -34,15 +35,19 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+    const { user } = useAuth();
+    const cartKey = user ? `mateunico_cart_${user.id}` : 'mateunico_cart_guest';
+
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [currentStorageKey, setCurrentStorageKey] = useState(cartKey);
 
     const UMBRAL_ENVIO_GRATIS = 50000;
     const COSTO_ENVIO_FIJO = 5000;
 
-    // Cargar carrito desde localStorage
+    // Cargar carrito del usuario actual desde localStorage
     useEffect(() => {
-        const savedCart = localStorage.getItem('mateunico_cart');
+        const savedCart = localStorage.getItem(cartKey);
         if (savedCart) {
             const parsed = JSON.parse(savedCart);
             // Migración de seguridad por si tenías items viejos guardados
@@ -51,12 +56,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 cartItemId: item.cartItemId || `${item.id}-${item.color}-${item.grabado || ''}`
             }));
             setCart(migratedCart);
+        } else {
+            setCart([]);
         }
-    }, []);
+        setCurrentStorageKey(cartKey);
+    }, [cartKey]);
 
     useEffect(() => {
-        localStorage.setItem('mateunico_cart', JSON.stringify(cart));
-    }, [cart]);
+        if (currentStorageKey === cartKey) {
+            localStorage.setItem(cartKey, JSON.stringify(cart));
+        }
+    }, [cart, cartKey, currentStorageKey]);
 
     const addToCart = (newItem: CartItem) => {
         // Creamos la "patente" única para este producto exacto

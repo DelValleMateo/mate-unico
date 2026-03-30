@@ -7,19 +7,25 @@ import { Search, ShoppingCart, User, LogOut, LayoutDashboard, ChevronDown } from
 import { useCart } from '../context/CartContext'; 
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
+import LoginDropdown from './LoginDropdown';
 
 export default function Header() {
     const { totalItems } = useCart(); 
     const { user, logout } = useAuth();
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isLoginMenuOpen, setIsLoginMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const loginMenuRef = useRef<HTMLDivElement>(null);
 
     // Cierra el menú de usuario si se cliquea afuera
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setIsMenuOpen(false);
+            }
+            if (loginMenuRef.current && !loginMenuRef.current.contains(event.target as Node)) {
+                setIsLoginMenuOpen(false);
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
@@ -123,9 +129,12 @@ export default function Header() {
                             )}
                         </div>
                     ) : (
-                        <Link href="/login" className="hover:text-white transition-colors">
-                            <User className="w-5 h-5 cursor-pointer" />
-                        </Link>
+                        <div className="relative" ref={loginMenuRef}>
+                            <button onClick={() => setIsLoginMenuOpen(!isLoginMenuOpen)} className="hover:text-white transition-colors focus:outline-none flex items-center">
+                                <User className="w-5 h-5 cursor-pointer" />
+                            </button>
+                            {isLoginMenuOpen && <LoginDropdown onClose={() => setIsLoginMenuOpen(false)} />}
+                        </div>
                     )}
 
                 </div>

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { MapPin, ChevronDown, Check } from 'lucide-react';
 
 interface CartItem {
     id: number;
@@ -57,7 +58,18 @@ export default function CarritoPage() {
     const [aplicandoCupon, setAplicandoCupon] = useState(false);
     const [mostrarInputCupon, setMostrarInputCupon] = useState(false);
     const [selectedCP, setSelectedCP] = useState("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
     const safeCartItems = Array.isArray(cart) ? cart : [];
 
     // Lógicas de Precios
@@ -275,51 +287,96 @@ export default function CarritoPage() {
                                                     : <span className="text-gray-500 font-normal">A CALCULAR</span>}
                                         </span>
                                     </div>
-                                    <select 
-                                        className="w-full bg-[#111] border border-gray-600 p-3 text-[10px] text-gray-100 rounded-sm focus:border-white focus:outline-none uppercase tracking-widest cursor-pointer"
-                                        value={selectedCP}
-                                        onChange={(e) => setSelectedCP(e.target.value)}
-                                    >
-                                        <option value="">Selecciona tu provincia...</option>
-                                        {SHIPPING_ZONES.map(z => (
-                                            <option key={z.cp} value={z.cp}>{z.nombre} (CP: {z.cp})</option>
-                                        ))}
-                                    </select>
+                                    <div className="relative w-full" ref={dropdownRef}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                            className="w-full flex items-center justify-between bg-white/5 hover:bg-white/10 border border-white/10 p-3.5 text-[11px] text-gray-100 rounded-lg transition-all focus:outline-none uppercase tracking-wide cursor-pointer text-left"
+                                        >
+                                            <div className="flex items-center gap-3 font-medium text-gray-300">
+                                                <MapPin className="w-4 h-4 text-gray-400" />
+                                                {zonaSeleccionada ? `${zonaSeleccionada.nombre} (CP: ${zonaSeleccionada.cp})` : 'SELECCIONA TU PROVINCIA...'}
+                                            </div>
+                                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+
+                                        {isDropdownOpen && (
+                                            <ul className="absolute z-50 mt-2 w-full max-h-[300px] overflow-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl animate-in fade-in slide-in-from-top-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent text-left">
+                                                {SHIPPING_ZONES.map((z) => {
+                                                    const isSelected = z.cp === selectedCP;
+                                                    return (
+                                                        <li 
+                                                            key={z.cp} 
+                                                            onClick={() => {
+                                                                setSelectedCP(z.cp);
+                                                                setIsDropdownOpen(false);
+                                                            }}
+                                                            className={`flex justify-between items-center px-4 py-4 cursor-pointer transition-colors text-[11px] uppercase tracking-wide ${isSelected ? 'bg-white/10 text-white font-bold border-l-2 border-white' : 'text-gray-400 hover:bg-white/5 hover:text-white border-l-2 border-transparent'}`}
+                                                        >
+                                                            <span>{z.nombre} <span className="text-gray-500 font-normal ml-1">({z.cp})</span></span>
+                                                            {isSelected && <Check className="w-4 h-4 text-green-500" />}
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Lógica de Cupón */}
                                 <div className="pt-4 flex flex-col gap-3">
-                                    <button
-                                        onClick={() => setMostrarInputCupon(!mostrarInputCupon)}
-                                        className="text-blue-500 text-left text-[10px] hover:text-blue-400 transition-colors tracking-widest uppercase"
-                                    >
-                                        {mostrarInputCupon ? 'Ocultar Cupones' : '¿Tenés un código?'}
-                                    </button>
-
-                                    {mostrarInputCupon && (
-                                        <div className="flex flex-col gap-2">
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={cuponInput}
-                                                    onChange={(e) => setCuponInput(e.target.value.toUpperCase())}
-                                                    placeholder="CÓDIGO"
-                                                    className="bg-white/5 border border-white/10 px-3 py-3 text-white text-xs outline-none focus:border-white/30 flex-1 uppercase tracking-widest placeholder:text-gray-600 rounded-sm"
-                                                />
-                                                <button
-                                                    onClick={aplicarCupon}
-                                                    disabled={aplicandoCupon || !cuponInput.trim()}
-                                                    className="bg-white/10 text-white px-5 py-3 hover:bg-white/20 transition-colors disabled:opacity-50 text-[10px] tracking-[0.2em] font-bold rounded-sm"
-                                                >
-                                                    {aplicandoCupon ? '...' : 'OK'}
-                                                </button>
+                                    {descuentoPorcentaje > 0 ? (
+                                        <div className="flex justify-between items-center bg-green-500/10 border border-green-500/20 p-4 rounded-sm">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest mb-0.5">Cupón de {descuentoPorcentaje}% Aplicado</span>
+                                                <span className="text-[13px] text-white font-medium uppercase tracking-widest">{cuponInput}</span>
                                             </div>
-                                            {mensajeCupon && (
-                                                <span className={`text-[10px] uppercase tracking-widest ${descuentoPorcentaje > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {mensajeCupon}
-                                                </span>
-                                            )}
+                                            <button 
+                                                onClick={() => {
+                                                    setCuponInput("");
+                                                    setDescuentoPorcentaje(0);
+                                                    setMensajeCupon("");
+                                                }}
+                                                className="text-[10px] uppercase tracking-widest text-[#8e8e93] hover:text-red-400 transition"
+                                            >
+                                                Quitar
+                                            </button>
                                         </div>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => setMostrarInputCupon(!mostrarInputCupon)}
+                                                className="text-white text-left text-[10px] hover:text-gray-300 transition-colors tracking-widest uppercase font-bold"
+                                            >
+                                                {mostrarInputCupon ? '▲ Ocultar Cupones' : '▼ ¿Tenés un código de descuento?'}
+                                            </button>
+
+                                            {mostrarInputCupon && (
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={cuponInput}
+                                                            onChange={(e) => setCuponInput(e.target.value.toUpperCase())}
+                                                            placeholder="CÓDIGO"
+                                                            className="bg-white/5 border border-white/10 px-4 py-3 text-white text-xs outline-none focus:border-white/30 flex-1 uppercase tracking-widest placeholder:text-gray-600 rounded-sm"
+                                                        />
+                                                        <button
+                                                            onClick={aplicarCupon}
+                                                            disabled={aplicandoCupon || !cuponInput.trim()}
+                                                            className="bg-white/10 text-white px-6 py-3 hover:bg-white/20 transition-colors disabled:opacity-50 text-[10px] tracking-[0.2em] font-bold rounded-sm"
+                                                        >
+                                                            {aplicandoCupon ? '...' : 'APLICAR'}
+                                                        </button>
+                                                    </div>
+                                                    {mensajeCupon && (
+                                                        <span className="text-[10px] uppercase tracking-widest text-red-400 mt-1">
+                                                            {mensajeCupon}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
 
