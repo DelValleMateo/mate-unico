@@ -261,7 +261,7 @@ function ProductCard({ producto }: { producto: Product }) {
                         SIN STOCK
                     </div>
                 ) : hayDescuento ? (
-                    <div className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest py-1 px-3 rounded-sm shadow-lg z-10 animate-pulse">
+                    <div className="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold uppercase tracking-widest py-1.5 px-4 rounded-lg shadow-lg shadow-red-900/40 z-10 animate-pulse border border-red-400/40">
                         -{porcentajeDescuento}%
                     </div>
                 ) : null}

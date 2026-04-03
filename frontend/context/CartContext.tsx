@@ -14,6 +14,7 @@ export interface CartItem {
     quantity: number;
     color: string;
     grabado?: string;
+    stock?: number; // Stock disponible del producto
 }
 
 interface CartContextType {

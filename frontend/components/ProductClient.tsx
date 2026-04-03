@@ -86,7 +86,8 @@ export default function ProductClient({ product, averageRating, reviewCount }: P
             img: mainImage,
             quantity: quantity,
             color: "Estándar",
-            grabado: grabadoText
+            grabado: grabadoText,
+            stock: stock
         });
 
         setIsAdded(true);
@@ -120,7 +121,7 @@ export default function ProductClient({ product, averageRating, reviewCount }: P
                                 <div className="flex items-center gap-4 mt-2">
                                     <span className="text-xl font-light text-gray-500 line-through">${formatPrice(numPrecioAnterior + costoGrabado)}</span>
                                     <span className="text-3xl font-bold text-red-500">${formatPrice(precioUnitarioFinal)}</span>
-                                    <span className="bg-red-600 text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-sm shadow-lg animate-pulse">
+                                    <span className="bg-red-600 text-white text-sm font-bold uppercase tracking-widest px-4 py-2 rounded-md shadow-lg shadow-red-900/50 animate-pulse border border-red-400/30">
                                         -{porcentajeDescuento}% OFF
                                     </span>
                                 </div>

@@ -541,7 +541,17 @@ export interface ApiOrdenOrden extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     cupon: Schema.Attribute.String;
     direccion_envio_cp: Schema.Attribute.String;
-    estado: Schema.Attribute.Enumeration<['pendiente', 'pagado', 'cancelado']> &
+    estado: Schema.Attribute.Enumeration<
+      [
+        'pendiente',
+        'pagado',
+        'cancelado',
+        'armado',
+        'listo para enviar',
+        'en camino',
+        'entregado',
+      ]
+    > &
       Schema.Attribute.DefaultTo<'pendiente'>;
     fecha: Schema.Attribute.DateTime;
     item_ordens: Schema.Attribute.Relation<

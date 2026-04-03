@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { MapPin, ChevronDown, Check } from 'lucide-react';
+import { MapPin, ChevronDown, Check, AlertTriangle, X, ShoppingBag } from 'lucide-react';
 
 interface CartItem {
     id: number;
@@ -17,6 +17,7 @@ interface CartItem {
     quantity: number;
     color?: string;
     grabado?: string;
+    stock?: number;
 }
 
 const SHIPPING_ZONES = [
@@ -58,7 +59,15 @@ export default function CarritoPage() {
     const [aplicandoCupon, setAplicandoCupon] = useState(false);
     const [mostrarInputCupon, setMostrarInputCupon] = useState(false);
     const [selectedCP, setSelectedCP] = useState("");
+    const [direccion, setDireccion] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+    const [mostrarAlertaSinStock, setMostrarAlertaSinStock] = useState(false);
+    const [verificandoStock, setVerificandoStock] = useState(false);
+    const [stockVerificado, setStockVerificado] = useState<Array<{
+        cartItemId?: string; id: number; name: string; quantity: number;
+        stockActual: number; tieneStock: boolean;
+    }>>([]);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -70,10 +79,15 @@ export default function CarritoPage() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
     const safeCartItems = Array.isArray(cart) ? cart : [];
 
-    // Lógicas de Precios
-    const totalPrice = safeCartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    // Separar items con y sin stock
+    const itemsConStock = safeCartItems.filter(item => item.stock === undefined || item.stock > 0);
+    const itemsSinStock = safeCartItems.filter(item => item.stock !== undefined && item.stock <= 0);
+
+    // Lógicas de Precios (solo sobre items con stock)
+    const totalPrice = itemsConStock.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const envioGratisMeta = 50000;
     const currentTotal = totalPrice || 0;
     const montoDescuento = (currentTotal * descuentoPorcentaje) / 100;
@@ -125,33 +139,75 @@ export default function CarritoPage() {
         }
     };
 
-    const handleCheckout = async () => {
+    const handleConfirmarCompra = async () => {
         if (!user) {
             alert("Para comprar un mate, por favor iniciá sesión o registrate primero.");
             router.push('/login');
             return;
         }
 
-        if (safeCartItems.length === 0) return;
-        
         if (!selectedCP) {
             alert("Por favor, seleccioná una provincia válida para el envío antes de continuar.");
             return;
         }
 
+        if (!direccion.trim()) {
+            alert("Por favor, ingresá tu dirección de entrega antes de continuar.");
+            return;
+        }
+
+        // Verificar stock en tiempo real
+        setVerificandoStock(true);
+        try {
+            const res = await fetch('/api/check-stock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: safeCartItems })
+            });
+            const data = await res.json();
+            const resultados = data.resultados ?? [];
+            setStockVerificado(resultados);
+
+            const algunoConStock = resultados.some((r: { tieneStock: boolean }) => r.tieneStock);
+            if (!algunoConStock) {
+                setMostrarAlertaSinStock(true);
+                return;
+            }
+
+            setMostrarConfirmacion(true);
+        } catch {
+            alert('Error al verificar stock. Intentá de nuevo.');
+        } finally {
+            setVerificandoStock(false);
+        }
+    };
+
+    const handleCheckout = async () => {
+        if (!user) return;
+        // Usar resultados verificados si existen, si no caer de vuelta a itemsConStock
+        const itemsParaComprar = stockVerificado.length > 0
+            ? safeCartItems.filter(item =>
+                stockVerificado.find(r => (r.cartItemId && r.cartItemId === item.cartItemId) || r.id === item.id)?.tieneStock
+              )
+            : itemsConStock;
+        if (itemsParaComprar.length === 0) return;
+        if (!selectedCP) return;
+
         try {
             setLoading(true);
-            localStorage.setItem("ultimaCompra", JSON.stringify(safeCartItems));
+            setMostrarConfirmacion(false);
+            localStorage.setItem("ultimaCompra", JSON.stringify(itemsParaComprar));
 
             const response = await fetch("/api/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    items: safeCartItems,
+                    items: itemsParaComprar,
                     userId: user?.id,
                     jwt: jwt,
                     cupon: cuponInput,
-                    cpEnvio: selectedCP
+                    cpEnvio: selectedCP,
+                    direccion: direccion
                 }),
             });
 
@@ -167,6 +223,9 @@ export default function CarritoPage() {
             setLoading(false);
         }
     };
+
+    // Habilitar el botón si hay CP y dirección (incluso si todos sin stock, para mostrar el modal de error)
+    const canConfirm = safeCartItems.length > 0 && selectedCP && direccion.trim().length > 0;
 
     return (
         <div className="min-h-screen text-white p-4 md:p-12 flex justify-center items-start pt-32 bg-transparent">
@@ -187,53 +246,83 @@ export default function CarritoPage() {
                                     </Link>
                                 </div>
                             ) : (
-                                safeCartItems.map((item) => (
-                                    <div key={item.cartItemId || item.id} className="flex gap-8 pb-10 border-b border-white/5 relative items-center">
-                                        <div className="relative w-36 h-36 bg-[#1a1a1a] rounded-lg p-4">
-                                            <Image
-                                                src={item.img || '/placeholder.png'}
-                                                alt={item.name}
-                                                fill
-                                                className="object-contain p-2"
-                                                unoptimized
-                                            />
-                                        </div>
-
-                                        <div className="flex-1 flex flex-col h-36 justify-between py-1">
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h3 className="text-2xl font-medium tracking-tight">{item.name}</h3>
-                                                    {item.color && <p className="text-gray-500 text-[10px] uppercase tracking-[0.2em] mt-2 font-semibold">Color: {item.color}</p>}
-                                                    {item.grabado && <p className="text-amber-500 text-[10px] uppercase tracking-[0.2em] mt-1 font-bold">Grabado: "{item.grabado}"</p>}
-
-                                                    <div className="flex items-center gap-4 mt-3 bg-[#1a1a1a] w-fit rounded-sm border border-white/5 px-2 py-1">
-                                                        <button
-                                                            onClick={() => updateQuantity(item.cartItemId || item.id.toString(), 'decrease')}
-                                                            className="text-gray-500 hover:text-white px-2 transition-colors text-lg"
-                                                            disabled={item.quantity <= 1}
-                                                        > - </button>
-                                                        <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
-                                                        <button
-                                                            onClick={() => updateQuantity(item.cartItemId || item.id.toString(), 'increase')}
-                                                            className="text-gray-500 hover:text-white px-2 transition-colors text-lg"
-                                                        > + </button>
+                                safeCartItems.map((item) => {
+                                    const sinStock = item.stock !== undefined && item.stock <= 0;
+                                    return (
+                                        <div key={item.cartItemId || item.id} className={`flex gap-8 pb-10 border-b border-white/5 relative items-center ${sinStock ? 'opacity-50' : ''}`}>
+                                            <div className="relative w-36 h-36 bg-[#1a1a1a] rounded-lg p-4">
+                                                <Image
+                                                    src={item.img || '/placeholder.png'}
+                                                    alt={item.name}
+                                                    fill
+                                                    className="object-contain p-2"
+                                                    unoptimized
+                                                />
+                                                {sinStock && (
+                                                    <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center">
+                                                        <span className="text-[9px] uppercase tracking-widest text-red-400 font-bold bg-red-900/80 px-2 py-1 rounded">Sin Stock</span>
                                                     </div>
+                                                )}
+                                            </div>
 
-                                                    <p className="text-2xl font-bold mt-4 text-gray-100">${(item.price * item.quantity).toLocaleString()}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-gray-500 text-[10px] uppercase mb-16">by MateUnico</p>
-                                                    <button
-                                                        onClick={() => removeFromCart(item.cartItemId || item.id.toString())}
-                                                        className="text-gray-400 hover:text-white text-[10px] uppercase tracking-widest border-b border-gray-600 pb-0.5"
-                                                    > Eliminar </button>
+                                            <div className="flex-1 flex flex-col h-36 justify-between py-1">
+                                                <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <div className="flex items-center gap-3">
+                                                            <h3 className="text-2xl font-medium tracking-tight">{item.name}</h3>
+                                                            {sinStock && (
+                                                                <span className="text-[9px] uppercase tracking-widest text-red-400 font-bold border border-red-500/40 px-2 py-0.5 rounded-sm bg-red-900/20">
+                                                                    Sin stock
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {item.color && <p className="text-gray-500 text-[10px] uppercase tracking-[0.2em] mt-2 font-semibold">Color: {item.color}</p>}
+                                                        {item.grabado && <p className="text-amber-500 text-[10px] uppercase tracking-[0.2em] mt-1 font-bold">Grabado: "{item.grabado}"</p>}
+
+                                                        {!sinStock && (
+                                                            <div className="flex items-center gap-4 mt-3 bg-[#1a1a1a] w-fit rounded-sm border border-white/5 px-2 py-1">
+                                                                <button
+                                                                    onClick={() => updateQuantity(item.cartItemId || item.id.toString(), 'decrease')}
+                                                                    className="text-gray-500 hover:text-white px-2 transition-colors text-lg"
+                                                                    disabled={item.quantity <= 1}
+                                                                > - </button>
+                                                                <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
+                                                                <button
+                                                                    onClick={() => updateQuantity(item.cartItemId || item.id.toString(), 'increase')}
+                                                                    className="text-gray-500 hover:text-white px-2 transition-colors text-lg"
+                                                                > + </button>
+                                                            </div>
+                                                        )}
+
+                                                        <p className="text-2xl font-bold mt-4 text-gray-100">${(item.price * item.quantity).toLocaleString()}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-gray-500 text-[10px] uppercase mb-16">by MateUnico</p>
+                                                        <button
+                                                            onClick={() => removeFromCart(item.cartItemId || item.id.toString())}
+                                                            className="text-gray-400 hover:text-white text-[10px] uppercase tracking-widest border-b border-gray-600 pb-0.5"
+                                                        > Eliminar </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
+
+                        {/* Aviso productos sin stock en columna izquierda */}
+                        {itemsSinStock.length > 0 && (
+                            <div className="mt-8 bg-amber-500/5 border border-amber-500/20 rounded-lg p-5 flex gap-4 items-start max-w-3xl">
+                                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-amber-400 text-xs uppercase tracking-widest font-bold mb-1">Productos sin stock</p>
+                                    <p className="text-gray-400 text-xs leading-relaxed">
+                                        {itemsSinStock.map(i => i.name).join(', ')} {itemsSinStock.length === 1 ? 'no tiene' : 'no tienen'} stock disponible y {itemsSinStock.length === 1 ? 'será omitido' : 'serán omitidos'} de la compra. Podés continuar con el resto de los productos.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Barra de Envío Progresiva */}
                         {safeCartItems.length > 0 && (
@@ -321,6 +410,22 @@ export default function CarritoPage() {
                                             </ul>
                                         )}
                                     </div>
+
+                                    {/* Campo de dirección de domicilio */}
+                                    {selectedCP && (
+                                        <div className="w-full flex flex-col gap-2">
+                                            <label className="text-[10px] text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                                <MapPin className="w-3 h-3" /> Dirección de entrega
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={direccion}
+                                                onChange={(e) => setDireccion(e.target.value)}
+                                                placeholder="Calle, número, piso/dpto..."
+                                                className="w-full bg-white/5 border border-white/10 focus:border-white/30 px-4 py-3 text-white text-[11px] outline-none rounded-lg transition-all placeholder:text-gray-600 uppercase tracking-wide"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Lógica de Cupón */}
@@ -386,20 +491,191 @@ export default function CarritoPage() {
                                 </div>
                             </div>
 
+                            {/* Botón Confirmar Compra */}
                             <button
-                                onClick={handleCheckout}
-                                disabled={loading || safeCartItems.length === 0 || !selectedCP}
-                                className={`w-full py-5 mt-12 font-bold uppercase tracking-[0.25em] text-[10px] transition-all ${loading || safeCartItems.length === 0 || !selectedCP
+                                onClick={handleConfirmarCompra}
+                                disabled={loading || verificandoStock || !canConfirm}
+                                className={`w-full py-5 mt-12 font-bold uppercase tracking-[0.25em] text-[10px] transition-all flex items-center justify-center gap-2 ${loading || verificandoStock || !canConfirm
                                     ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                                     : 'bg-white text-black hover:bg-gray-200 hover:tracking-[0.3em]'
                                     }`}
                             >
-                                {loading ? 'CONECTANDO...' : !selectedCP ? 'ELIGE TU PROVINCIA' : 'Pagar con Mercado Pago'}
+                                {verificandoStock ? (
+                                    <>
+                                        <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                        </svg>
+                                        VERIFICANDO STOCK...
+                                    </>
+                                ) : loading ? 'CONECTANDO...' : !selectedCP ? 'ELIGE TU PROVINCIA' : !direccion.trim() ? 'INGRESÁ TU DIRECCIÓN' : 'CONFIRMAR COMPRA'}
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* MODAL: TODO SIN STOCK */}
+            {mostrarAlertaSinStock && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                        onClick={() => setMostrarAlertaSinStock(false)}
+                    />
+                    <div className="relative bg-[#111] border border-red-500/30 rounded-xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex flex-col items-center text-center gap-5">
+                            <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+                                <AlertTriangle className="w-7 h-7 text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-white font-light uppercase tracking-widest text-base mb-2">Sin stock disponible</h3>
+                                <p className="text-gray-400 text-sm leading-relaxed">
+                                    Ninguno de los productos en tu carrito tiene stock disponible en este momento.<br />
+                                    <span className="text-gray-500 text-xs mt-2 block">Podés seguir explorando el catálogo o volver más tarde.</span>
+                                </p>
+                            </div>
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setMostrarAlertaSinStock(false)}
+                                    className="flex-1 py-3 border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition-all text-[10px] uppercase tracking-widest rounded-sm"
+                                >
+                                    Cerrar
+                                </button>
+                                <button
+                                    onClick={() => { setMostrarAlertaSinStock(false); router.push('/catalogo'); }}
+                                    className="flex-1 py-3 bg-white text-black font-bold hover:bg-gray-200 transition-all text-[10px] uppercase tracking-widest rounded-sm"
+                                >
+                                    Ver Catálogo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL DE CONFIRMACIÓN */}
+            {mostrarConfirmacion && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div 
+                        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                        onClick={() => setMostrarConfirmacion(false)}
+                    />
+                    <div className="relative bg-[#111] border border-white/10 rounded-xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                        
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3">
+                                <ShoppingBag className="w-5 h-5 text-white" />
+                                <h3 className="text-lg font-light uppercase tracking-widest text-white">Confirmar compra</h3>
+                            </div>
+                            <button 
+                                onClick={() => setMostrarConfirmacion(false)}
+                                className="text-gray-500 hover:text-white transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Aviso productos sin stock (verificado en tiempo real) */}
+                        {stockVerificado.some(r => !r.tieneStock) && (
+                            <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex gap-3 items-start">
+                                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-amber-400 text-[10px] uppercase tracking-widest font-bold mb-1">Atención — sin stock</p>
+                                    <p className="text-gray-300 text-xs leading-relaxed">
+                                        <span className="font-medium text-white">
+                                            {stockVerificado.filter(r => !r.tieneStock).map(r => r.name).join(', ')}
+                                        </span>
+                                        {' '}no {stockVerificado.filter(r => !r.tieneStock).length === 1 ? 'tiene' : 'tienen'} stock suficiente y {stockVerificado.filter(r => !r.tieneStock).length === 1 ? 'será excluido' : 'serán excluidos'} de esta compra.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Resumen de productos con estado de stock */}
+                        <div className="space-y-3 mb-6">
+                            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3">Detalle de productos</p>
+                            {safeCartItems.map(item => {
+                                const resultado = stockVerificado.find(
+                                    r => (r.cartItemId && r.cartItemId === item.cartItemId) || r.id === item.id
+                                );
+                                const conStock = resultado ? resultado.tieneStock : true;
+                                return (
+                                    <div key={item.cartItemId || item.id} className={`flex justify-between items-center text-xs gap-3 ${!conStock ? 'opacity-50' : ''}`}>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <span className="text-gray-300 truncate">{item.name} <span className="text-gray-600">x{item.quantity}</span></span>
+                                            {!conStock && (
+                                                <span className="shrink-0 text-[8px] uppercase tracking-widest text-red-400 border border-red-500/40 px-1.5 py-0.5 rounded-sm bg-red-900/20 font-bold">
+                                                    Sin stock
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className={`font-medium shrink-0 ${conStock ? 'text-white' : 'text-gray-600 line-through'}`}>
+                                            ${(item.price * item.quantity).toLocaleString()}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Datos de envío */}
+                        <div className="bg-white/5 rounded-lg p-4 mb-8 space-y-2">
+                            <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                                <span className="text-gray-500">Provincia</span>
+                                <span className="text-gray-200">{zonaSeleccionada?.nombre}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] uppercase tracking-widest">
+                                <span className="text-gray-500">Dirección</span>
+                                <span className="text-gray-200 text-right max-w-[60%]">{direccion}</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] uppercase tracking-widest border-t border-white/5 pt-2 mt-2">
+                                <span className="text-gray-500">Envío</span>
+                                <span className={costoEnvioAplicado === 0 ? 'text-green-400' : 'text-gray-200'}>
+                                    {costoEnvioAplicado === 0 ? 'GRATIS' : `$${(costoEnvioAplicado || 0).toLocaleString()}`}
+                                </span>
+                            </div>
+                            <div className="flex justify-between text-sm font-bold border-t border-white/10 pt-3 mt-2">
+                                <span className="text-white uppercase tracking-widest text-[10px]">Total</span>
+                                <span className="text-white">${(
+                                    (() => {
+                                        const subtotalModal = stockVerificado.length > 0
+                                            ? safeCartItems
+                                                .filter(item => stockVerificado.find(r => (r.cartItemId && r.cartItemId === item.cartItemId) || r.id === item.id)?.tieneStock)
+                                                .reduce((acc, item) => acc + item.price * item.quantity, 0)
+                                            : totalPrice;
+                                        const descuentoModal = (subtotalModal * descuentoPorcentaje) / 100;
+                                        return subtotalModal - descuentoModal + (costoEnvioAplicado || 0);
+                                    })()
+                                ).toLocaleString()}</span>
+                            </div>
+                        </div>
+
+                        {/* Botones */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setMostrarConfirmacion(false)}
+                                className="flex-1 py-4 border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition-all text-[10px] uppercase tracking-widest rounded-sm"
+                            >
+                                Volver
+                            </button>
+                            <button
+                                onClick={handleCheckout}
+                                disabled={loading}
+                                className="flex-2 flex-grow-[2] py-4 bg-[#009EE3] hover:bg-[#0081B9] text-white font-bold transition-all text-[10px] uppercase tracking-widest rounded-sm disabled:opacity-50 disabled:cursor-wait flex items-center justify-center gap-2"
+                            >
+                                {loading ? 'CONECTANDO...' : (
+                                    <>
+                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-1.97 9.289c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.932z"/>
+                                        </svg>
+                                        PAGAR CON MERCADO PAGO
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

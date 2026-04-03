@@ -29,7 +29,7 @@ const SHIPPING_ZONES = [
 
 export async function POST(request: Request) {
     try {
-        const { items, userId, jwt, cupon, cpEnvio } = await request.json();
+        const { items, userId, jwt, cupon, cpEnvio, direccion } = await request.json();
 
         if (!cpEnvio) {
             return NextResponse.json({ error: "Debe seleccionar un destino de envío válido" }, { status: 400 });
@@ -90,8 +90,12 @@ export async function POST(request: Request) {
             const data = await res.json();
             const productoDB = Array.isArray(data.data) ? data.data[0] : data.data;
 
-            if (!productoDB || productoDB.stock < item.quantity) {
-                return NextResponse.json({ error: `Sin stock suficiente para: ${item.name}` }, { status: 409 });
+            if (!productoDB) continue;
+
+            // Si no tiene stock suficiente, lo omitimos en lugar de fallar
+            if (productoDB.stock < item.quantity) {
+                console.warn(`[Checkout] ${item.name} sin stock suficiente, omitiendo...`);
+                continue;
             }
 
             const precioBaseReal = Number(productoDB.precio);

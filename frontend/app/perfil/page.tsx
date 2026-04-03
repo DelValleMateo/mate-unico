@@ -22,6 +22,7 @@ const PerfilPage = () => {
   const [compras, setCompras] = useState<Order[]>([]);
   const [cargando, setCargando] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
+  const [resenasHechas, setResenasHechas] = useState<Set<string>>(new Set());
 
   // Estados de Edición de Perfil
   const [editando, setEditando] = useState(false);
@@ -42,21 +43,43 @@ const PerfilPage = () => {
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Devuelve el estado efectivo: si es Pendiente y pasaron +12hs → "Vencido"
+  const estadoEfectivo = (order: Order) => {
+    const estado = order.attributes?.estado || (order as any).estado || '';
+    if (estado.toLowerCase() !== 'pendiente') return estado;
+    const fecha = order.attributes?.fecha || (order as any).fecha || (order as any).createdAt;
+    if (!fecha) return estado;
+    const horasTranscurridas = (Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60);
+    return horasTranscurridas > 12 ? 'Vencido' : estado;
+  };
+
   useEffect(() => {
     const obtenerHistorial = async () => {
       if (!user || !jwt) return;
 
       setCargando(true);
       try {
-        const url = `/api/orders?userId=${user.id}`;
-        
-        const res = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${jwt}`
-          }
-        });
-        const { data } = await res.json();
-        if (data) setCompras(data);
+        const tokenToUse = process.env.NEXT_PUBLIC_STRAPI_API_TOKEN || jwt;
+        const [ordersRes, reviewsRes] = await Promise.all([
+          fetch(`/api/orders?userId=${user.id}`, { headers: { 'Authorization': `Bearer ${jwt}` } }),
+          fetch(`http://localhost:1337/api/reviews?filters[users_permissions_user][id][$eq]=${user.id}&populate=producto&pagination[limit]=100`, {
+            headers: { 'Authorization': `Bearer ${tokenToUse}` }
+          })
+        ]);
+
+        const { data: ordersData } = await ordersRes.json();
+        if (ordersData) setCompras(ordersData);
+
+        if (reviewsRes.ok) {
+          const reviewsJson = await reviewsRes.json();
+          const ids = new Set<string>(
+            (reviewsJson.data || []).map((r: any) => {
+              const prod = r.attributes?.producto?.data || r.producto?.data || r.producto;
+              return prod?.documentId || prod?.attributes?.documentId || String(prod?.id || '');
+            }).filter(Boolean)
+          );
+          setResenasHechas(ids);
+        }
       } catch (error) {
         console.error("Error al conectar con Strapi:", error);
       } finally {
@@ -111,16 +134,22 @@ const PerfilPage = () => {
     };
 
     try {
+        const tokenToUse = process.env.NEXT_PUBLIC_STRAPI_API_TOKEN || jwt;
         const res = await fetch('http://localhost:1337/api/reviews', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${jwt}`
+                'Authorization': `Bearer ${tokenToUse}`
             },
             body: JSON.stringify(reviewData)
         });
         if (res.ok) {
             alert("¡Reseña guardada con éxito!");
+            setResenasHechas(prev => {
+                const newSet = new Set(prev);
+                newSet.add(reviewingProduct.id.toString());
+                return newSet;
+            });
             setReviewingProduct(null);
             setRating(0);
             setComment("");
@@ -281,13 +310,22 @@ const PerfilPage = () => {
                 <p className="text-gray-500 italic">Consultando base de datos...</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                  {compras.length > 0 ? (
-                    compras.map((order) => (
+                  {compras.filter((order) => estadoEfectivo(order).toLowerCase() !== 'vencido').length > 0 ? (
+                    compras.filter((order) => estadoEfectivo(order).toLowerCase() !== 'vencido').map((order) => {
+                      const estadoActual = estadoEfectivo(order);
+                      const esPagado = estadoActual.toLowerCase() === 'pagado';
+                      const estadoColor = estadoActual.toLowerCase() === 'pagado'
+                        ? 'bg-green-900/30 text-green-500'
+                        : estadoActual.toLowerCase() === 'vencido'
+                          ? 'bg-red-900/30 text-red-500'
+                          : 'bg-yellow-900/30 text-yellow-500';
+
+                      return (
                       <div key={order.id} className="bg-[#111] rounded-xl border border-gray-800 p-6 hover:border-gray-500 transition shadow-xl sm:col-span-2 md:col-span-3 lg:col-span-1">
                         <div className="flex justify-between items-start mb-4">
                           <span className="text-[10px] bg-gray-800 px-2 py-1 rounded text-gray-400">PEDIDO #{order.id}</span>
-                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${(order.attributes?.estado || (order as any).estado) === 'Entregado' ? 'bg-green-900/30 text-green-500' : 'bg-yellow-900/30 text-yellow-500'}`}>
-                            {order.attributes?.estado || (order as any).estado}
+                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${estadoColor}`}>
+                            {estadoActual}
                           </span>
                         </div>
                         
@@ -296,6 +334,7 @@ const PerfilPage = () => {
                                 const prodRef = itemO.attributes?.producto?.data || itemO.producto?.data || itemO.producto;
                                 if (!prodRef) return null;
                                 const prodData = prodRef.attributes || prodRef;
+                                const prodDocId = prodRef.documentId || prodRef.attributes?.documentId || String(prodRef.id || '');
 
                                 // Extraer URL de imagen (Strapi v4 o v5)
                                 const imagenes = prodData?.imagenes?.data || prodData?.imagenes || [];
@@ -308,6 +347,9 @@ const PerfilPage = () => {
                                 const fullImgUrl = imgUrl
                                     ? (imgUrl.startsWith('http') ? imgUrl : `http://localhost:1337${imgUrl}`)
                                     : null;
+
+                                const yaReseno = resenasHechas.has(prodDocId);
+                                const puedeResenar = esPagado && !yaReseno;
                                 
                                 return (
                                     <div key={itemO.id} className="flex items-center gap-3 border border-gray-800 bg-black/50 p-3 rounded-lg">
@@ -334,12 +376,22 @@ const PerfilPage = () => {
                                             <p className="text-gray-500 text-[10px] mt-1">{itemO.attributes?.cantidad || itemO.cantidad}x · Grabado: {itemO.attributes?.d_grabado || itemO.d_grabado || 'No'}</p>
                                         </div>
 
-                                        <button 
-                                            onClick={() => setReviewingProduct({id: prodRef.documentId, name: prodData?.nombreProducto})}
-                                            className="flex-shrink-0 bg-white text-black px-3 py-1.5 rounded text-[10px] font-bold uppercase hover:bg-gray-200 transition-colors"
-                                        >
-                                            RESEÑAR
-                                        </button>
+                                        {puedeResenar ? (
+                                            <button 
+                                                onClick={() => setReviewingProduct({id: prodDocId, name: prodData?.nombreProducto})}
+                                                className="flex-shrink-0 bg-white text-black px-3 py-1.5 rounded text-[10px] font-bold uppercase hover:bg-gray-200 transition-colors"
+                                            >
+                                                RESEÑAR
+                                            </button>
+                                        ) : (
+                                            <span className={`flex-shrink-0 px-3 py-1.5 rounded text-[10px] font-bold uppercase border ${
+                                                yaReseno
+                                                    ? 'border-green-700/40 text-green-600 bg-green-900/10'
+                                                    : 'border-gray-700/40 text-gray-600 bg-gray-900/20'
+                                            }`}>
+                                                {yaReseno ? '✓ RESEÑADO' : !esPagado ? estadoActual.toUpperCase() : 'RESEÑADO'}
+                                            </span>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -350,7 +402,8 @@ const PerfilPage = () => {
                             <p className="text-green-500 font-mono text-xl">${order.attributes?.total || (order as any).total}</p>
                         </div>
                       </div>
-                    ))
+                    );
+                    })
                   ) : (
                     <div className="col-span-full py-20 text-center border border-dashed border-gray-900 rounded-2xl flex flex-col items-center gap-5">
                       <p className="text-gray-600 italic">Aún no tienes mates...</p>
