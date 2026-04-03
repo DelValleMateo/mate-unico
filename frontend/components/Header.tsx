@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link'; 
-import { Search, ShoppingCart, User, LogOut, LayoutDashboard, ChevronDown } from 'lucide-react';
+import { Search, ShoppingCart, User, LogOut, LayoutDashboard, ChevronDown, Package } from 'lucide-react';
 import { useCart } from '../context/CartContext'; 
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -112,10 +112,16 @@ export default function Header() {
                             {isMenuOpen && (
                                 <div className="absolute right-0 mt-3 w-48 bg-[#0a0a0a] border border-gray-800 rounded-lg shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2">
                                     {isAdmin && (
-                                        <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-widest text-amber-500 hover:bg-gray-900 transition-colors border-b border-gray-800 font-bold">
-                                            <LayoutDashboard className="w-4 h-4" />
-                                            Dashboard
-                                        </Link>
+                                        <>
+                                            <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-xs uppercase tracking-widest text-amber-500 hover:bg-gray-900 transition-colors border-b border-gray-800 font-bold">
+                                                <LayoutDashboard className="w-4 h-4" />
+                                                Dashboard
+                                            </Link>
+                                            <Link href="/admin/pedidos" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[10px] uppercase tracking-widest text-blue-500 hover:bg-gray-900 transition-colors border-b border-gray-800 font-bold">
+                                                <Package className="w-4 h-4" />
+                                                Gestión de Pedidos
+                                            </Link>
+                                        </>
                                     )}
                                     <Link href="/perfil" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-300 hover:text-white hover:bg-gray-900 transition-colors border-b border-gray-800">
                                         <User className="w-4 h-4" />

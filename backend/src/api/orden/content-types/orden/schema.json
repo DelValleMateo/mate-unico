@@ -23,7 +23,11 @@
       "enum": [
         "pendiente",
         "pagado",
-        "cancelado"
+        "cancelado",
+        "armado",
+        "listo para enviar",
+        "en camino",
+        "entregado"
       ]
     },
     "payment_id": {
